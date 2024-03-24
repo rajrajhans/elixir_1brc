@@ -9,6 +9,7 @@ defmodule OneBRC.Measurements do
   require Logger
 
   def create_measurements do
+    Logger.info("Creating #{@count} measurements ...")
     {time, _} = :timer.tc(&create_measurements_/0)
     time_s = round(time / 1_000_000 * 10) / 10.0
     Logger.info("Created #{@count} measurements in #{time_s}s")
