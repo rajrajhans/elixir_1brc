@@ -2,7 +2,7 @@
 
 defmodule OneBRC.Measurements do
   @measurements_file "./data/measurements.txt"
-  @count 1
+  @count 10_000
 
   alias OneBRC.WeatherStations
   alias OneBRC.WeatherStation
@@ -18,7 +18,7 @@ defmodule OneBRC.Measurements do
     stations = WeatherStations.stations_data() |> Map.keys()
     num_stations = Enum.count(stations)
 
-    {:ok, file} = File.open(@measurements_file, [:append])
+    {:ok, file} = File.open(@measurements_file, [:append, :utf8])
 
     1..@count
     |> Stream.map(fn _ ->
