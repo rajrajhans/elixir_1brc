@@ -2,7 +2,7 @@
 
 defmodule OneBRC.Measurements do
   @measurements_file "./data/measurements.txt"
-  @count 1_000_00
+  @count 1_000_000
 
   alias OneBRC.WeatherStations
   alias OneBRC.WeatherStation
@@ -23,21 +23,35 @@ defmodule OneBRC.Measurements do
     stations = WeatherStations.stations_data() |> Map.keys()
     num_stations = Enum.count(stations)
 
+    t1 = System.monotonic_time(:millisecond)
+
+    content =
+      1..@count
+      |> Task.async_stream(
+        fn _ ->
+          station = Enum.at(stations, :rand.uniform(num_stations - 1))
+          ws = WeatherStation.measurement(station)
+
+          "#{ws.name};#{ws.temperature}\n"
+        end,
+        max_concurrency: System.schedulers_online(),
+        ordered: false,
+        timeout: :infinity
+      )
+      |> Stream.map(&elem(&1, 1))
+      |> Enum.join()
+
+    t2 = System.monotonic_time(:millisecond)
+
     {:ok, file} = File.open(@measurements_file, [:append, :utf8])
+    IO.write(file, content)
 
-    1..@count
-    |> Stream.map(fn _ ->
-      station = Enum.at(stations, :rand.uniform(num_stations - 1))
-      ws = WeatherStation.measurement(station)
-
-      "#{ws.name};#{ws.temperature}\n"
-    end)
-    |> Stream.chunk_every(100)
-    |> Stream.map(&Enum.join(&1))
-    |> Stream.each(&IO.write(file, &1))
-    |> Stream.run()
+    t3 = System.monotonic_time(:millisecond)
 
     File.close(file)
+
+    Logger.info("time to create measurements: #{t2 - t1}ms")
+    Logger.info("time to write measurements: #{t3 - t2}ms")
   end
 end
 
