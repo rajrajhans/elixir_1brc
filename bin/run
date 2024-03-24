@@ -15,7 +15,7 @@ run_format() {
 }
 
 run_create_measurements() {
-    mix run -e "OneBRC.Measurements.create_measurements()"
+    mix run -e "OneBRC.Measurements.create_measurements(${1})"
 }
 
 fn_exists() { declare -F "$1" >/dev/null; }
