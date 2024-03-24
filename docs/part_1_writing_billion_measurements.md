@@ -24,6 +24,24 @@ time awk 'BEGIN { for (i=0; i<1000000000; i++) print "station_name;10" }' > data
 
 #### Batching writes
 
+```elixir
+{:ok, file} = File.open(@measurements_file, [:append, :utf8])
+
+1..count
+|> Stream.map(fn _ ->
+    station = Enum.at(stations, :rand.uniform(num_stations - 1))
+    ws = WeatherStation.measurement(station)
+    "#{ws.name};#{ws.temperature}\n"
+end)
+|> Stream.chunk_every(100)
+|> Stream.map(&Enum.join(&1))
+|> Stream.each(&IO.write(file, &1))
+|> Stream.run()
+File.close(file)
+```
+
+- this improved the time for a mill rows from `47 seconds` to `30 seconds`
+
 #### Opening file in raw mode, buffered writes
 
 - **No improvements** seen
@@ -80,7 +98,7 @@ IO.write(file, content)
 
 - This **did not help**. For 1 mil rows, it took 1.3s (up from 0.9s).
 
-#### Adding concurrency to the pre-calculation
+#### Adding concurrency to the pre-calculation (best performance)
 
 - Since the previous approach increased the time it took, I thought maybe adding concurrency to the pre-calculation would help.
 
@@ -135,3 +153,47 @@ IO.write(file, content)
 ```
 
 - This reduced the time taken for 1 mil rows to **0.1s**!! 🎉🥳
+- For 1 billion rows, this implementation took 205 seconds (3m 25s) 🚀🚀
+
+### Concurrency with less memory usage (balance between memory and performance)
+
+- The previous approach used around 14 GB of memory, which is fine for a billion rows. It's possible to reduce this memory usage while still keeping the performance high. Core idea being to have another layer of chunking above our current chunking. We'll chunk the 1 billion rows into smaller chunks of 10 million rows each, and each of these chunk will stream write into the file. Inside each chunks, we'll have our current code, which is to chunk the rows into 10k each and hold them in memory. This way, we limit the max memory usage.
+
+```elixir
+{:ok, file} = File.open(@measurements_file, [:append, :utf8])
+
+1..count
+|> Stream.chunk_every(10_000_000)
+|> Task.async_stream(
+    fn arr ->
+    arr
+    |> Stream.chunk_every(20_000)
+    |> Task.async_stream(
+        fn arr ->
+        arr
+        |> Enum.map(fn _ ->
+            station = Enum.at(stations, :rand.uniform(num_stations) - 1)
+            ws = WeatherStation.measurement(station)
+
+            "#{ws.name};#{ws.temperature}\n"
+        end)
+        |> Enum.join()
+        end,
+        max_concurrency: System.schedulers_online() * 5,
+        ordered: false,
+        timeout: :infinity
+    )
+    |> Enum.map(&elem(&1, 1))
+    end,
+    max_concurrency: System.schedulers_online() * 5,
+    ordered: false,
+    timeout: :infinity
+)
+|> Stream.map(&elem(&1, 1))
+|> Stream.map(&Enum.join(&1))
+|> Stream.each(&IO.write(file, &1))
+|> Stream.run()
+```
+
+- For 1 million rows, this version takes the same amount as before, 0.1 seconds.
+- For 1 billion rows, this version takes 235 seconds (3m 55s), which is a bit slower than the previous version, but uses much less memory.
