@@ -28,8 +28,42 @@ time awk 'BEGIN { for (i=0; i<1000000000; i++) print "station_name;10" }' > data
 
 - **No improvements** seen
 
+### Optimizing `WeatherStations.get_station/1`
+
+```elixir
+ def get_station(name) do
+    stations = stations_data()
+    temp = Map.fetch!(stations, name)
+    %WeatherStation{name: name, temperature: temp}
+  end
+
+  def stations_data do
+    Enum.into(
+      [
+.... 400 items
+     ], %{})
+```
+
+- I realized that `WeatherStations.get_station/1` function was getting called while writing each row. Each call is doing a `Enum.into`, which converts the list into a map.
+- To fix this, I created another module, and set the stations map as a module attribute.
+
+```elixir
+defmodule OneBRC.Measurements.Data do
+  @stations_data %{
+    .... 400 items
+  }
+  def stations_data, do: @stations_data
+end
+```
+
+- After this change, the time taken for 1 million rows went from 29 seconds to 0.9 seconds!
+
 #### Pre-calculating the whole file in memory, and then writing it in single shot
 
 #### Adding concurrency to the pre-calculation
 
 - weird behaviour with one billion rows
+
+```
+
+```
