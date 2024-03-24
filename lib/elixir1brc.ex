@@ -1,6 +1,6 @@
-defmodule Elixir1brc do
+defmodule OneBRC do
   @moduledoc """
-  Documentation for `Elixir1brc`.
+  Documentation for `OneBRC`.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule Elixir1brc do
 
   ## Examples
 
-      iex> Elixir1brc.hello()
+      iex> OneBRC.hello()
       :world
 
   """
