@@ -32,14 +32,19 @@ defmodule OneBRC.Measurements do
 
     content =
       1..count
+      |> Stream.chunk_every(10_000)
       |> Task.async_stream(
-        fn _ ->
-          station = Enum.at(stations, :rand.uniform(num_stations - 1))
-          ws = WeatherStation.measurement(station)
+        fn arr ->
+          arr
+          |> Enum.map(fn _ ->
+            station = Enum.at(stations, :rand.uniform(num_stations - 1))
+            ws = WeatherStation.measurement(station)
 
-          "#{ws.name};#{ws.temperature}\n"
+            "#{ws.name};#{ws.temperature}\n"
+          end)
+          |> Enum.join()
         end,
-        max_concurrency: System.schedulers_online(),
+        max_concurrency: System.schedulers_online() * 5,
         ordered: false,
         timeout: :infinity
       )

@@ -61,10 +61,77 @@ end
 
 #### Pre-calculating the whole file in memory, and then writing it in single shot
 
+- Instead of writing one by one to file, why not pre-calculate the whole file in memory and then write it in one go? We can afford the memory consumption.
+
+```elixir
+content =
+      1..count
+      |> Enum.map(fn _ ->
+        station = Enum.at(stations, :rand.uniform(num_stations - 1))
+        ws = WeatherStation.measurement(station)
+
+        "#{ws.name};#{ws.temperature}\n"
+      end)
+      |> Enum.join()
+
+{:ok, file} = File.open(@measurements_file, [:append, :utf8])
+IO.write(file, content)
+```
+
+- This **did not help**. For 1 mil rows, it took 1.3s (up from 0.9s).
+
 #### Adding concurrency to the pre-calculation
 
-- weird behaviour with one billion rows
+- Since the previous approach increased the time it took, I thought maybe adding concurrency to the pre-calculation would help.
 
+```elixir
+content =
+    1..count
+    |> Task.async_stream(
+    fn _ ->
+        station = Enum.at(stations, :rand.uniform(num_stations - 1))
+        ws = WeatherStation.measurement(station)
+
+        "#{ws.name};#{ws.temperature}\n"
+    end,
+    max_concurrency: System.schedulers_online(),
+    ordered: false,
+    timeout: :infinity
+    )
+    |> Stream.map(&elem(&1, 1))
+    |> Enum.join()
+
+{:ok, file} = File.open(@measurements_file, [:append, :utf8])
+IO.write(file, content)
 ```
 
+- In this version, I added concurrency using `Task.async_stream`. To my surprise this **increased the time** to 7.3s (!) for 1 mil rows.
+- I realized that each of tasks is very lightweight, and the overhead of creating a task is more than the actual work done by the task. So, instead of processing a single row in each task, I decided to process 10k rows in each task:
+
+```elixir
+content =
+      1..count
+      |> Stream.chunk_every(10_000)
+      |> Task.async_stream(
+        fn arr ->
+          arr
+          |> Enum.map(fn _ ->
+            station = Enum.at(stations, :rand.uniform(num_stations - 1))
+            ws = WeatherStation.measurement(station)
+
+            "#{ws.name};#{ws.temperature}\n"
+          end)
+          |> Enum.join()
+        end,
+        max_concurrency: System.schedulers_online(),
+        ordered: false,
+        timeout: :infinity
+      )
+      |> Stream.map(&elem(&1, 1))
+      |> Enum.join()
+
+{:ok, file} = File.open(@measurements_file, [:append, :utf8])
+IO.write(file, content)
 ```
+
+- This reduced the time taken for 1 mil rows to **0.1s**!! 🎉🥳
