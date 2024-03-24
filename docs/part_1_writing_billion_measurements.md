@@ -57,6 +57,7 @@ end
 ```
 
 - After this change, the time taken for 1 million rows went from 29 seconds to 0.9 seconds!
+- I also tried creating an agent to store the stations data at start, and then using `Agent.get` to get the data. But it was slower than the module attribute approach. Can't beat compile-time optimizations!
 
 #### Pre-calculating the whole file in memory, and then writing it in single shot
 
