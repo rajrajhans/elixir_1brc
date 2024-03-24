@@ -28,7 +28,7 @@ defmodule OneBRC.Measurements do
 
       "#{ws.name};#{ws.temperature}\n"
     end)
-    |> Stream.chunk_every(10)
+    |> Stream.chunk_every(100)
     |> Stream.map(&Enum.join(&1))
     |> Stream.each(&IO.write(file, &1))
     |> Stream.run()
