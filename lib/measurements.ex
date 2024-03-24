@@ -2,14 +2,18 @@
 
 defmodule OneBRC.Measurements do
   @measurements_file "./data/measurements.txt"
-  @count 1_000_000
+  @count 1_000_00
 
   alias OneBRC.WeatherStations
   alias OneBRC.WeatherStation
   require Logger
 
   def create_measurements do
+    _ = File.rm(@measurements_file)
+    :ok = File.touch(@measurements_file)
+
     Logger.info("Creating #{@count} measurements ...")
+
     {time, _} = :timer.tc(&create_measurements_/0)
     time_s = round(time / 1_000_000 * 10) / 10.0
     Logger.info("Created #{@count} measurements in #{time_s}s")
@@ -19,7 +23,6 @@ defmodule OneBRC.Measurements do
     stations = WeatherStations.stations_data() |> Map.keys()
     num_stations = Enum.count(stations)
 
-    _ = File.rm(@measurements_file)
     {:ok, file} = File.open(@measurements_file, [:append, :utf8])
 
     1..@count
