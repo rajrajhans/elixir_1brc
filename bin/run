@@ -1,0 +1,31 @@
+#!/bin/bash
+
+set -e
+
+run_deps() {
+    mix deps.get
+}
+
+run_iex() {
+    iex --sname OneBRC -S mix
+}
+
+run_format() {
+    mix format
+}
+
+fn_exists() { declare -F "$1" >/dev/null; }
+
+run() {
+    local cmd=$1
+    shift
+    local fn="run_$cmd"
+
+    if fn_exists $fn; then
+        $fn ${@}
+    else
+        eval $cmd "${@}"
+    fi
+}
+
+run ${@}
