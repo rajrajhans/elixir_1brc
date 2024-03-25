@@ -28,36 +28,7 @@ defmodule OneBRC.MeasurementsProcessor do
     fs
     |> Stream.map(&String.split(&1, ";"))
     |> Stream.reject(fn value -> value |> Enum.at(0) == "" end)
-    |> Stream.map(fn [key, value] ->
-      {val, _} = Float.parse(value)
-      existing_record = :ets.lookup(ets_table, key)
-
-      new_record =
-        case existing_record do
-          [] ->
-            %{
-              min: val,
-              max: val,
-              sum: val,
-              count: 1
-            }
-
-          [{^key, record}] ->
-            min = if val < record.min, do: val, else: record.min
-            max = if val > record.max, do: val, else: record.max
-            sum = record.sum + val
-            count = record.count + 1
-
-            %{
-              min: min,
-              max: max,
-              sum: sum,
-              count: count
-            }
-        end
-
-      :ets.insert(ets_table, {key, new_record})
-    end)
+    |> Stream.map(fn val -> process_row(val, ets_table) end)
     |> Stream.run()
 
     t2 = System.monotonic_time(:millisecond)
@@ -74,6 +45,37 @@ defmodule OneBRC.MeasurementsProcessor do
     Logger.info("Processing data 2: #{System.monotonic_time(:millisecond) - t2} ms")
 
     result
+  end
+
+  defp process_row([key, value], ets_table) do
+    {val, _} = Float.parse(value)
+    existing_record = :ets.lookup(ets_table, key)
+
+    new_record =
+      case existing_record do
+        [] ->
+          %{
+            min: val,
+            max: val,
+            sum: val,
+            count: 1
+          }
+
+        [{^key, record}] ->
+          min = if val < record.min, do: val, else: record.min
+          max = if val > record.max, do: val, else: record.max
+          sum = record.sum + val
+          count = record.count + 1
+
+          %{
+            min: min,
+            max: max,
+            sum: sum,
+            count: count
+          }
+      end
+
+    :ets.insert(ets_table, {key, new_record})
   end
 
   defp measurements_file(count) do
