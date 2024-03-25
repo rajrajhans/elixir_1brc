@@ -54,14 +54,13 @@ defmodule OneBRC.MeasurementsProcessor do
   end
 
   defp parse_row(row) do
-    item = row |> String.split(";")
-
-    case item do
-      [""] ->
+    case row do
+      "" ->
         nil
 
-      [key, value] ->
-        {parsed_value, _} = Float.parse(value)
+      row ->
+        [key, value] = String.split(row, ";")
+        parsed_value = String.to_float(value |> String.trim_trailing())
         [key, parsed_value]
     end
   end
