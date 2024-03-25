@@ -28,7 +28,15 @@ defmodule OneBRC.MeasurementsProcessor do
     fs
     |> Stream.map(&String.split(&1, ";"))
     |> Stream.reject(fn value -> value |> Enum.at(0) == "" end)
-    |> Stream.map(fn val -> process_row(val, ets_table) end)
+    |> Stream.chunk_every(10_000)
+    |> Task.async_stream(
+      fn val ->
+        Enum.map(val, fn row -> process_row(row, ets_table) end)
+      end,
+      max_concurrency: System.schedulers_online() * 5,
+      ordered: false,
+      timeout: :infinity
+    )
     |> Stream.run()
 
     t2 = System.monotonic_time(:millisecond)
