@@ -10,17 +10,25 @@
 
 - All tests are run on: Apple M2 Max, 32GB RAM, 12 cores
 
-#### Baseline
+#### Naive approach
 
-Let's see how long it takes to write one billion rows of the same data to a file, using `awk`
+```elixir
+{:ok, file} = File.open(@measurements_file, [:append, :utf8])
 
-```sh
-time awk 'BEGIN { for (i=0; i<1000000000; i++) print "station_name;10" }' > data.txt
+1..count
+|> Stream.map(fn _ ->
+    station = Enum.at(stations, :rand.uniform(num_stations - 1))
+    ws = WeatherStation.measurement(station)
+
+    content = "#{ws.name};#{ws.temperature}\n"
+    IO.write(file, content)
+end)
+|> Stream.run()
+
+File.close(file)
 ```
 
-- took `2:18.61 total`
-
-#### Naive approach
+- Simple, straightforward approach. This took `47 seconds` for 1 million rows, although most of the time was spent in the `WeatherStation.measurement` function, which calls `WeatherStations.get_station/1`, which we will optimize in the next steps.
 
 #### Batching writes
 
