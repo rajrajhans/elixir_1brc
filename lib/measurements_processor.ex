@@ -19,15 +19,14 @@ defmodule OneBRC.MeasurementsProcessor do
 
   def process_(count) do
     file_path = measurements_file(count)
-    {:ok, content} = File.read(file_path)
+    fs = File.stream!(file_path)
 
     t1 = System.monotonic_time(:millisecond)
 
     result =
-      content
-      |> String.split("\n")
-      |> Enum.map(&String.split(&1, ";"))
-      |> Enum.reject(fn value -> value |> Enum.at(0) == "" end)
+      fs
+      |> Stream.map(&String.split(&1, ";"))
+      |> Stream.reject(fn value -> value |> Enum.at(0) == "" end)
       |> Enum.reduce(%{}, fn [key, value], acc ->
         {val, _} = Float.parse(value)
 
@@ -38,16 +37,11 @@ defmodule OneBRC.MeasurementsProcessor do
           count: 1
         }
 
-        Map.update(acc, key, default, fn %{
-                                           min: min,
-                                           max: max,
-                                           sum: sum,
-                                           count: count
-                                         } ->
-          min = if val < min, do: val, else: min
-          max = if val > max, do: val, else: max
-          sum = sum + val
-          count = count + 1
+        Map.update(acc, key, default, fn record ->
+          min = if val < record.min, do: val, else: record.min
+          max = if val > record.max, do: val, else: record.max
+          sum = record.sum + val
+          count = record.count + 1
 
           %{
             min: min,
