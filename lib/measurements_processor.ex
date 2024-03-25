@@ -26,17 +26,15 @@ defmodule OneBRC.MeasurementsProcessor do
     ets_table = :ets.new(:station_stats, [:set, :public])
 
     fs
-    |> Stream.map(&String.split(&1, ";"))
-    |> Stream.reject(fn value -> value |> Enum.at(0) == "" end)
-    |> Stream.chunk_every(10_000)
+    |> Stream.chunk_every(1000)
     |> Task.async_stream(
-      fn val ->
-        Enum.map(val, fn row -> process_row(row, ets_table) end)
-      end,
+      fn val -> Enum.map(val, &parse_row/1) |> Enum.reject(&is_nil/1) end,
       max_concurrency: System.schedulers_online() * 5,
       ordered: false,
       timeout: :infinity
     )
+    |> Stream.flat_map(&elem(&1, 1))
+    |> Stream.map(&process_row(&1, ets_table))
     |> Stream.run()
 
     t2 = System.monotonic_time(:millisecond)
@@ -55,8 +53,20 @@ defmodule OneBRC.MeasurementsProcessor do
     result
   end
 
-  defp process_row([key, value], ets_table) do
-    {val, _} = Float.parse(value)
+  defp parse_row(row) do
+    item = row |> String.split(";")
+
+    case item do
+      [""] ->
+        nil
+
+      [key, value] ->
+        {parsed_value, _} = Float.parse(value)
+        [key, parsed_value]
+    end
+  end
+
+  defp process_row([key, val], ets_table) do
     existing_record = :ets.lookup(ets_table, key)
 
     new_record =
