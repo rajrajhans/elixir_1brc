@@ -42,9 +42,9 @@ defmodule OneBRC.MeasurementsProcessor do
     result =
       :ets.tab2list(ets_table)
       |> Enum.map(fn {key, %{min: min, max: max, sum: sum, count: count}} ->
-        mean = (sum / count) |> round_to_single_decimal()
+        mean = (sum / (count * 10.0)) |> round_to_single_decimal()
 
-        {key, %{min: min, max: max, mean: mean}}
+        {key, %{min: min / 10.0, max: max / 10.0, mean: mean}}
       end)
 
     Logger.info("Processing data 1: #{t2 - t1} ms")
@@ -60,7 +60,13 @@ defmodule OneBRC.MeasurementsProcessor do
 
       row ->
         [key, value] = String.split(row, ";")
-        parsed_value = String.to_float(value |> String.trim_trailing())
+
+        parsed_value =
+          value |> String.trim_trailing()
+
+        [a, b] = parsed_value |> String.split(".")
+        parsed_value = (a <> b) |> String.to_integer()
+
         [key, parsed_value]
     end
   end
