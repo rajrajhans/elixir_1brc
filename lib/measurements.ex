@@ -1,7 +1,7 @@
 # adapted from Java version in 1brc repo (https://github.com/gunnarmorling/1brc/blob/main/src/main/java/dev/morling/onebrc/CreateMeasurements.java)
 
 defmodule OneBRC.Measurements do
-  @measurements_file "./data/measurements.txt"
+  @measurements_file "./data/measurements.{COUNT}.txt"
   @count 1_000_000_000
 
   alias OneBRC.Measurements.WeatherStations
@@ -14,8 +14,9 @@ defmodule OneBRC.Measurements do
   end
 
   def create_measurements(count) do
-    _ = File.rm(@measurements_file)
-    :ok = File.touch(@measurements_file)
+    file_path = measurements_file(count)
+    _ = File.rm(file_path)
+    :ok = File.touch(file_path)
 
     Logger.info("Creating #{count} measurements ...")
 
@@ -53,7 +54,7 @@ defmodule OneBRC.Measurements do
 
     t2 = System.monotonic_time(:millisecond)
 
-    {:ok, file} = File.open(@measurements_file, [:append, :utf8])
+    {:ok, file} = File.open(measurements_file(count), [:append, :utf8])
     IO.write(file, content)
 
     t3 = System.monotonic_time(:millisecond)
@@ -62,6 +63,10 @@ defmodule OneBRC.Measurements do
 
     Logger.info("time to create measurements: #{t2 - t1}ms")
     Logger.info("time to write measurements: #{t3 - t2}ms")
+  end
+
+  defp measurements_file(count) do
+    String.replace(@measurements_file, "{COUNT}", Integer.to_string(count))
   end
 end
 
