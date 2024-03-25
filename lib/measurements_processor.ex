@@ -99,6 +99,17 @@ defmodule OneBRC.MeasurementsProcessor do
           ]
       end)
 
-    File.write!("./data/result_b1.#{count}.json", Jason.encode!(map))
+    file_path = "./data/result_b1.#{count}.json"
+    File.write!(file_path, Jason.encode!(map))
+
+    # optional correctness check
+    baseline_file_path = "./data/result_baseline.1000000.json"
+
+    if File.exists?(baseline_file_path) do
+      is_correct =
+        OneBRC.Utilities.CompareData.compare_json(baseline_file_path, file_path)
+
+      Logger.info("Result is #{if is_correct, do: "correct", else: "incorrect"}")
+    end
   end
 end
