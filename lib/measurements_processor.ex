@@ -59,12 +59,12 @@ defmodule OneBRC.MeasurementsProcessor do
         nil
 
       row ->
-        [key, value] = String.split(row, ";")
+        [key, value] = :binary.split(row, ";")
 
         parsed_value =
           value |> String.trim_trailing()
 
-        [a, b] = parsed_value |> String.split(".")
+        [a, b] = parsed_value |> :binary.split(".")
         parsed_value = (a <> b) |> String.to_integer()
 
         [key, parsed_value]
