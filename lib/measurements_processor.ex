@@ -28,7 +28,7 @@ defmodule OneBRC.MeasurementsProcessor do
     fs
     |> Stream.chunk_every(1000)
     |> Task.async_stream(
-      fn val -> Enum.map(val, &parse_row/1) |> Enum.reject(&is_nil/1) end,
+      fn val -> Enum.map(val, &parse_row/1) end,
       max_concurrency: System.schedulers_online() * 5,
       ordered: false,
       timeout: :infinity
