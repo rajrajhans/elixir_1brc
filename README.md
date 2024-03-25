@@ -10,4 +10,18 @@ I took to solve the challenge in two parts - first being to optimize the creatio
 - There are baseline temperatures for each station given, and the temperature for each row is the baseline temperature for that station plus a random number between -10 and 10.
 - The file is a text file with each line of the format `station_name;temperature`.
 
-Approaches:
+- The fastest solution I've implemented so far creates the file with 1 billion measurements in 205 seconds. The code is at [`lib/measurements_generator.ex`](lib/measurements_generator.ex).
+- For more details, check out the [doc](docs/part_1_writing_billion_measurements.md).
+
+## Part 2: Processing 1 billion measurements
+
+- WIP.
+- For more details, check out the [doc](docs/part_2_processing_billion_measurements.md).
+
+## Setting up this repo
+
+- This repo uses Nix flakes to manage dependencies. To get started, run `direnv allow` in the root of the repo to activate the Nix environment.
+- Execute `run deps` to install dependencies.
+- To create measurements file, execute `run create_measurements 1_000_000`. This will create a file `data/measurements.1000000.txt` with 1 million measurements.
+- To process the measurements, execute `run process_measurements 1_000_000`. This will process the file created in the previous step.
+- That's it, you can follow the codepaths, starting from `bin/run` to explore further ✌️
