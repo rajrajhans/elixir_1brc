@@ -1,12 +1,12 @@
 # adapted from Java version in 1brc repo (https://github.com/gunnarmorling/1brc/blob/main/src/main/java/dev/morling/onebrc/CreateMeasurements.java)
 
-defmodule OneBRC.Measurements do
+defmodule OneBRC.MeasurementsGenerator do
   @measurements_file "./data/measurements.{COUNT}.txt"
   @count 1_000_000_000
 
-  alias OneBRC.Measurements.WeatherStations
-  alias OneBRC.Measurements.WeatherStation
-  alias OneBRC.Measurements.Data
+  alias OneBRC.MeasurementsGenerator.WeatherStations
+  alias OneBRC.MeasurementsGenerator.WeatherStation
+  alias OneBRC.MeasurementsGenerator.Data
   require Logger
 
   def create_measurements() do
@@ -70,8 +70,8 @@ defmodule OneBRC.Measurements do
   end
 end
 
-defmodule OneBRC.Measurements.WeatherStation do
-  alias OneBRC.Measurements.WeatherStations
+defmodule OneBRC.MeasurementsGenerator.WeatherStation do
+  alias OneBRC.MeasurementsGenerator.WeatherStations
   alias __MODULE__
 
   defstruct [:name, :temperature]
@@ -100,9 +100,9 @@ defmodule OneBRC.Measurements.WeatherStation do
   end
 end
 
-defmodule OneBRC.Measurements.WeatherStations do
-  alias OneBRC.Measurements.WeatherStation
-  alias OneBRC.Measurements.Data
+defmodule OneBRC.MeasurementsGenerator.WeatherStations do
+  alias OneBRC.MeasurementsGenerator.WeatherStation
+  alias OneBRC.MeasurementsGenerator.Data
 
   def get_station(name) do
     stations = Data.stations_data()
@@ -111,7 +111,7 @@ defmodule OneBRC.Measurements.WeatherStations do
   end
 end
 
-defmodule OneBRC.Measurements.Data do
+defmodule OneBRC.MeasurementsGenerator.Data do
   @stations_data %{
     "N'Djamena": 28.3,
     Toluca: 12.4,
