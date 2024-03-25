@@ -63,4 +63,5 @@ priv/plts/_.plt.hash
 # livebook
 .livebook/
 
+data/measurements.*.txt
 data/measurements.txt
