@@ -41,8 +41,8 @@ defmodule OneBRC.MeasurementsProcessor do
 
     result =
       :ets.tab2list(ets_table)
-      |> Enum.map(fn {key, %{min: min, max: max, sum: sum, count: count}} ->
-        mean = (sum / (count * 10.0)) |> round_to_single_decimal()
+      |> Enum.map(fn {key, %{min: min, max: max, mean: mean}} ->
+        mean = (mean / 10.0) |> round_to_single_decimal()
 
         {key, %{min: min / 10.0, max: max / 10.0, mean: mean}}
       end)
@@ -80,21 +80,20 @@ defmodule OneBRC.MeasurementsProcessor do
           %{
             min: val,
             max: val,
-            sum: val,
+            mean: val,
             count: 1
           }
 
         [{^key, record}] ->
           min = if val < record.min, do: val, else: record.min
           max = if val > record.max, do: val, else: record.max
-          sum = record.sum + val
-          count = record.count + 1
+          mean = (record.mean * record.count + val) / (record.count + 1)
 
           %{
             min: min,
             max: max,
-            sum: sum,
-            count: count
+            mean: mean,
+            count: record.count + 1
           }
       end
 
