@@ -22,6 +22,10 @@ run_create_measurements.profile() {
     mix profile.eprof -e "OneBRC.MeasurementsGenerator.create_measurements(${1})"
 }
 
+run_create_baseline_results() {
+    mix run -e "OneBRC.BaselineResultsGenerator.process(${1})"
+}
+
 run_process_measurements() {
     mix run -e "OneBRC.MeasurementsProcessor.process(${1})"
 }
