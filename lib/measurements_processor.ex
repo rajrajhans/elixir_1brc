@@ -128,7 +128,7 @@ defmodule OneBRC.MeasurementsProcessor do
     File.write!(file_path, Jason.encode!(map))
 
     # optional correctness check
-    baseline_file_path = "./data/result_baseline.1000000.json"
+    baseline_file_path = "./data/result_baseline.#{count}.json"
 
     if File.exists?(baseline_file_path) do
       is_correct =
