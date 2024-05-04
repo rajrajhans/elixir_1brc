@@ -8,10 +8,12 @@ defmodule OneBRC.MeasurementsProcessor do
   def process(count) do
     Logger.info("Processing measurements")
 
-    {time, output} = :timer.tc(fn -> process_(count) end)
+    {time, {output, t1, t2, t3}} = :timer.tc(fn -> process_(count) end)
     time_s = round(time / 1_000_000 * 10) / 10.0
 
     Logger.info("***OUTPUT***:\n\n#{inspect(output)}\n\n")
+    Logger.info("Processing data 1: #{t2 - t1} ms")
+    Logger.info("Processing data 2: #{t3 - t2} ms")
     Logger.info("Processed #{count} rows in #{time_s} s")
 
     write_result(output, count)
@@ -53,10 +55,7 @@ defmodule OneBRC.MeasurementsProcessor do
 
     result =
       :ets.tab2list(ets_table)
-      |> Enum.map(fn {_row_idx, records} ->
-        records
-      end)
-      |> Enum.reduce(%{}, fn interim_records_map, super_acc ->
+      |> Enum.reduce(%{}, fn {_row_idx, interim_records_map}, super_acc ->
         aggregated_records_for_current_row =
           Enum.reduce(interim_records_map, %{}, fn {key, interim_record}, temp_acc ->
             existing_aggregated_record = Map.get(super_acc, key, nil)
@@ -67,22 +66,13 @@ defmodule OneBRC.MeasurementsProcessor do
                   interim_record
 
                 aggregated_record ->
-                  min =
-                    if interim_record.min < aggregated_record.min,
-                      do: interim_record.min,
-                      else: aggregated_record.min
-
-                  max =
-                    if interim_record.max > aggregated_record.max,
-                      do: interim_record.max,
-                      else: aggregated_record.max
+                  min = :erlang.min(interim_record.min, aggregated_record.min)
+                  max = :erlang.max(interim_record.max, aggregated_record.max)
+                  count = aggregated_record.count + interim_record.count
 
                   mean =
                     (aggregated_record.mean * aggregated_record.count +
-                       interim_record.mean * interim_record.count) /
-                      (aggregated_record.count + interim_record.count)
-
-                  count = aggregated_record.count + interim_record.count
+                       interim_record.mean * interim_record.count) / count
 
                   %{
                     min: min,
@@ -95,7 +85,7 @@ defmodule OneBRC.MeasurementsProcessor do
             Map.put(temp_acc, key, new_aggregated_record)
           end)
 
-        Map.merge(super_acc, aggregated_records_for_current_row)
+        :maps.merge(super_acc, aggregated_records_for_current_row)
       end)
       |> Enum.map(fn {key, value} ->
         mean = (value.mean / 10.0) |> round_to_single_decimal()
@@ -108,10 +98,7 @@ defmodule OneBRC.MeasurementsProcessor do
          }}
       end)
 
-    Logger.info("Processing data 1: #{t2 - t1} ms")
-    Logger.info("Processing data 2: #{System.monotonic_time(:millisecond) - t2} ms")
-
-    result
+    {result, t1, t2, System.monotonic_time(:millisecond)}
   end
 
   defp parse_row(row) do
