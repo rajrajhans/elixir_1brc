@@ -28,7 +28,7 @@ defmodule OneBRC.MeasurementsProcessor do
     ets_table = :ets.new(:station_stats, [:set, :public])
 
     fs
-    |> Stream.chunk_every(2000)
+    |> Stream.chunk_every(10000)
     |> Task.async_stream(
       fn val -> Enum.map(val, &parse_row/1) end,
       max_concurrency: System.schedulers_online(),
