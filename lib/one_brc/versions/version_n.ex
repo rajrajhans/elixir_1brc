@@ -86,11 +86,18 @@ defmodule OneBRC.MeasurementsProcessor.VersionN do
     Logger.info("Processing data, stage 1 took: #{t2 - t1} ms")
     Logger.info("Processing data, stage 2 took: #{t3 - t2} ms")
 
-    result
-    |> Enum.sort_by(fn {key, _} -> key end)
-    |> Enum.reduce("", fn {key, %{min: min, max: max, mean: mean}}, acc ->
-      acc <> "#{key};#{min};#{mean};#{max}\n"
-    end)
+    result_txt =
+      result
+      |> Enum.sort_by(fn {key, _} -> key end)
+      |> Enum.reduce("", fn {key, %{min: min, max: max, mean: mean}}, acc ->
+        acc <> "#{key};#{min};#{mean};#{max}\n"
+      end)
+
+    t4 = System.monotonic_time(:millisecond)
+
+    Logger.info("Processing data, stage 3 took: #{t4 - t3} ms")
+
+    result_txt
   end
 
   defp round_to_single_decimal(number) do
