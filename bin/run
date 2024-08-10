@@ -79,7 +79,7 @@ run_process_measurements.repeat() {
     done
 }
 
-run_process_measurements.profile() {
+run_process_measurements.profile.eprof() {
     local parsed_args
     parsed_args=$(parse_count_version_args "$@")
     if [ $? -ne 0 ]; then
@@ -89,6 +89,28 @@ run_process_measurements.profile() {
 
     read -r count version <<<"$parsed_args"
     mix profile.eprof -e "OneBRC.MeasurementsProcessor.process(${count}, \"${version}\")"
+}
+
+run_process_measurements.profile.eflambe() {
+    local parsed_args
+    parsed_args=$(parse_count_version_args "$@")
+    if [ $? -ne 0 ]; then
+        echo "Usage: run_process_measurements.eflambe [--count=<count>] [--version=<version>]"
+        return 1
+    fi
+    read -r count version <<<"$parsed_args"
+    mkdir -p ./data/eflambe
+    mix run -e "
+        :eflambe.apply(
+            {OneBRC.MeasurementsProcessor, :process, [${count}, \"${version}\"]},
+            [
+                output_format: :brendan_gregg, 
+                open: :speedscope,
+                return: :filename,
+                output_directory: \"./data/eflambe\",
+            ]
+        )
+    "
 }
 
 fn_exists() { declare -F "$1" >/dev/null; }
