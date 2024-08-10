@@ -5,13 +5,18 @@ defmodule OneBrc.ResultVerification do
     generated_data = read_and_parse_file(generated_file)
     baseline_data = read_and_parse_file(baseline_file)
 
-    differences = compare_data(generated_data, baseline_data)
+    sorting_correct = check_sorting(generated_data)
+    content_differences = compare_data(generated_data, baseline_data)
 
-    case differences do
-      [] ->
+    case {sorting_correct, content_differences} do
+      {true, []} ->
         true
 
-      _ ->
+      {false, []} ->
+        Logger.error("Generated file is not sorted correctly.")
+        false
+
+      {_, differences} ->
         Enum.each(differences, &print_difference/1)
         false
     end
@@ -22,7 +27,6 @@ defmodule OneBrc.ResultVerification do
     |> File.read!()
     |> String.split("\n", trim: true)
     |> Enum.map(&parse_line/1)
-    |> Enum.into(%{})
   end
 
   defp parse_line(line) do
@@ -32,11 +36,19 @@ defmodule OneBrc.ResultVerification do
 
   defp parse_float(str), do: String.to_float(str)
 
-  defp compare_data(generated, baseline) do
-    keys = MapSet.new(Map.keys(generated) ++ Map.keys(baseline))
+  defp check_sorting(data) do
+    stations = Enum.map(data, fn {station, _} -> station end)
+    stations == Enum.sort(stations)
+  end
 
-    Enum.reduce(keys, [], fn station, acc ->
-      case {Map.get(generated, station), Map.get(baseline, station)} do
+  defp compare_data(generated, baseline) do
+    generated_map = Enum.into(generated, %{})
+    baseline_map = Enum.into(baseline, %{})
+
+    keys = MapSet.new(Map.keys(generated_map) ++ Map.keys(baseline_map))
+
+    Enum.reduce(Enum.sort(keys), [], fn station, acc ->
+      case {Map.get(generated_map, station), Map.get(baseline_map, station)} do
         {nil, _} ->
           [{:missing_in_generated, station} | acc]
 
