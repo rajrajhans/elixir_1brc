@@ -39,30 +39,16 @@ defmodule OneBRC.MeasurementsProcessor do
   end
 
   defp write_result(result, count) do
-    map =
-      result
-      |> Enum.reduce([], fn {key, values}, acc ->
-        acc ++
-          [
-            %{
-              station_name: key,
-              min: values.min,
-              max: values.max,
-              mean: values.mean
-            }
-          ]
-      end)
-
-    File.write!(results_file(count), Jason.encode!(map))
+    File.write!(results_file(count), result)
   end
 
   defp verify_result(count) do
     # optional correctness check
     baseline_file_path = baseline_results_file(count)
+    result_file_path = results_file(count)
 
     if File.exists?(baseline_file_path) do
-      is_correct =
-        OneBRC.Utilities.CompareData.compare_json(baseline_file_path, results_file(count))
+      is_correct = OneBrc.ResultVerification.verify_result(result_file_path, baseline_file_path)
 
       if is_correct do
         Logger.info("Result is correct")
@@ -70,6 +56,8 @@ defmodule OneBRC.MeasurementsProcessor do
         Logger.error("Result is incorrect")
         raise "Result is incorrect"
       end
+    else
+      Logger.error("Baseline file not found. Skipping correctness check")
     end
   end
 end

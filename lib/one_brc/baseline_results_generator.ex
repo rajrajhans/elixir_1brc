@@ -1,8 +1,9 @@
 defmodule OneBRC.BaselineResultsGenerator do
   @moduledoc """
-  Uses a known correct way to generate baseline results for the measurements processor, that can be used to test the correctness of the optimized versions.
+  Uses a known correct way to generate baseline results for the measurements processor.
+  Useful for testing the correctness while working on performance improvements.
   """
-  @measurements_file "./data/measurements.{COUNT}.txt"
+  import OneBRC.MeasurementsProcessor
   @count 1_000_000_000
   require Logger
 
@@ -14,7 +15,6 @@ defmodule OneBRC.BaselineResultsGenerator do
     {time, output} = :timer.tc(fn -> process_(count) end)
     time_s = round(time / 1_000_000 * 10) / 10.0
 
-    Logger.info("***OUTPUT***:\n\n#{inspect(output)}\n\n")
     Logger.info("Processed #{count} rows in #{time_s} s")
 
     write_result(output, count)
@@ -53,7 +53,14 @@ defmodule OneBRC.BaselineResultsGenerator do
     Logger.info("Processing data 1: #{t2 - t1} ms")
     Logger.info("Processing data 2: #{System.monotonic_time(:millisecond) - t2} ms")
 
-    result
+    result_txt =
+      result
+      |> Enum.sort_by(fn {key, _} -> key end)
+      |> Enum.reduce("", fn {key, %{min: min, max: max, mean: mean}}, acc ->
+        acc <> "#{key};#{min};#{mean};#{max}\n"
+      end)
+
+    result_txt
   end
 
   defp parse_row(row) do
@@ -104,30 +111,11 @@ defmodule OneBRC.BaselineResultsGenerator do
     :ets.insert(ets_table, {key, new_record})
   end
 
-  defp measurements_file(count) do
-    String.replace(@measurements_file, "{COUNT}", Integer.to_string(count))
-  end
-
   defp round_to_single_decimal(number) do
     round(number * 10) / 10.0
   end
 
   defp write_result(result, count) do
-    map =
-      result
-      |> Enum.reduce([], fn {key, values}, acc ->
-        acc ++
-          [
-            %{
-              station_name: key,
-              min: values.min,
-              max: values.max,
-              mean: values.mean
-            }
-          ]
-      end)
-
-    baseline_file_path = "./data/result_baseline.#{count}.json"
-    File.write!(baseline_file_path, Jason.encode!(map))
+    File.write!(baseline_results_file(count), result)
   end
 end
