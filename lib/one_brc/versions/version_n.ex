@@ -1,6 +1,8 @@
 defmodule OneBRC.MeasurementsProcessor.VersionN do
   import OneBRC.MeasurementsProcessor
 
+  require Logger
+
   def process(count) do
     file_path = measurements_file(count)
     fs = File.stream!(file_path)
@@ -80,7 +82,11 @@ defmodule OneBRC.MeasurementsProcessor.VersionN do
          }}
       end)
 
-    {result, t1, t2, System.monotonic_time(:millisecond)}
+    t3 = System.monotonic_time(:millisecond)
+    Logger.info("Processing data, stage 1 took: #{t2 - t1} ms")
+    Logger.info("Processing data, stage 2 took: #{t3 - t2} ms")
+
+    result
   end
 
   defp round_to_single_decimal(number) do

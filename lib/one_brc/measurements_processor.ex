@@ -10,11 +10,9 @@ defmodule OneBRC.MeasurementsProcessor do
   def process(count, version) do
     Logger.info("Processing #{count} measurements with version #{version}")
 
-    {time, {output, t1, t2, t3}} = :timer.tc(fn -> process_with_version(count, version) end)
+    {time, output} = :timer.tc(fn -> process_with_version(count, version) end)
     time_s = round(time / 1_000_000 * 10) / 10.0
 
-    Logger.info("Processing data, stage 1 took: #{t2 - t1} ms")
-    Logger.info("Processing data, stage 2 took: #{t3 - t2} ms")
     Logger.info("Processed #{count} rows in #{time_s} s")
 
     write_result(output, count)
@@ -33,11 +31,11 @@ defmodule OneBRC.MeasurementsProcessor do
   end
 
   def results_file(count) do
-    "./data/result.#{count}.json"
+    "./data/result.#{count}.txt"
   end
 
   def baseline_results_file(count) do
-    "./data/result_baseline.#{count}.json"
+    "./data/result_baseline.#{count}.txt"
   end
 
   defp write_result(result, count) do
