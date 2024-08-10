@@ -72,7 +72,7 @@ run_process_measurements() {
 }
 
 run_process_measurements.repeat() {
-    for i in {1..3}; do
+    for i in {1..6}; do
         echo -e "\n\n------Run $i------\n\n"
         run_process_measurements "$@"
         echo
@@ -108,6 +108,24 @@ run_process_measurements.profile.eflambe() {
                 open: :speedscope,
                 return: :filename,
                 output_directory: \"./data/eflambe\",
+            ]
+        )
+    "
+}
+
+run_process_measurements.profile.benchee() {
+    # useful for comparing different versions
+    mix run -e "
+        random_num = :rand.uniform(1_000_000)
+        Benchee.run(
+            %{
+                \"v2\" => fn -> OneBRC.MeasurementsProcessor.process(10_000_000, \"2\") end,
+                \"vn\" => fn -> OneBRC.MeasurementsProcessor.process(10_000_000, \"N\") end
+            },
+            warmup: 5,
+            formatters: [
+                {Benchee.Formatters.HTML, file: \"data/benchee_#{random_num}.html\"},
+                Benchee.Formatters.Console
             ]
         )
     "
