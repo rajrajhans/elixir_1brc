@@ -11,7 +11,7 @@ defmodule OneBRC.MeasurementsProcessor do
     Logger.info("Processing #{count} measurements with version #{version}")
 
     {time, output} = :timer.tc(fn -> process_with_version(count, version) end)
-    time_s = round(time / 1_000_000 * 10) / 10.0
+    time_s = Float.round(time / 1_000_000, 3)
 
     Logger.info("Processed #{count} rows in #{time_s} s")
 

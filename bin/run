@@ -71,6 +71,14 @@ run_process_measurements() {
     mix run -e "OneBRC.MeasurementsProcessor.process(${count}, \"${version}\")"
 }
 
+run_process_measurements.repeat() {
+    for i in {1..3}; do
+        echo -e "\n\n------Run $i------\n\n"
+        run_process_measurements "$@"
+        echo
+    done
+}
+
 run_process_measurements.profile() {
     local parsed_args
     parsed_args=$(parse_count_version_args "$@")

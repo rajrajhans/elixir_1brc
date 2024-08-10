@@ -4,10 +4,9 @@ defmodule OneBRC.MeasurementsProcessor.VersionN do
   require Logger
 
   def process(count) do
+    t1 = System.monotonic_time(:millisecond)
     file_path = measurements_file(count)
     fs = File.stream!(file_path)
-
-    t1 = System.monotonic_time(:millisecond)
 
     ets_table = :ets.new(:station_stats, [:set, :public])
 
@@ -83,8 +82,6 @@ defmodule OneBRC.MeasurementsProcessor.VersionN do
       end)
 
     t3 = System.monotonic_time(:millisecond)
-    Logger.info("Processing data, stage 1 took: #{t2 - t1} ms")
-    Logger.info("Processing data, stage 2 took: #{t3 - t2} ms")
 
     result_txt =
       result
@@ -95,7 +92,9 @@ defmodule OneBRC.MeasurementsProcessor.VersionN do
 
     t4 = System.monotonic_time(:millisecond)
 
-    Logger.info("Processing data, stage 3 took: #{t4 - t3} ms")
+    Logger.info("Processing data, stage 1 (processing) took: #{t2 - t1} ms")
+    Logger.info("Processing data, stage 2 (aggregating) took: #{t3 - t2} ms")
+    Logger.info("Processing data, stage 3 (sorting & txt creation) took: #{t4 - t3} ms")
 
     result_txt
   end
