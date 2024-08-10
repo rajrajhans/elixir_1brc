@@ -49,8 +49,16 @@ defmodule OneBRC.MeasurementsProcessor.VersionN do
                   interim_record
 
                 aggregated_record ->
-                  min = :erlang.min(interim_record.min, aggregated_record.min)
-                  max = :erlang.max(interim_record.max, aggregated_record.max)
+                  min =
+                    if interim_record.min < aggregated_record.min,
+                      do: interim_record.min,
+                      else: aggregated_record.min
+
+                  max =
+                    if interim_record.max > aggregated_record.max,
+                      do: interim_record.max,
+                      else: aggregated_record.max
+
                   count = aggregated_record.count + interim_record.count
 
                   mean =
@@ -71,13 +79,12 @@ defmodule OneBRC.MeasurementsProcessor.VersionN do
         :maps.merge(super_acc, aggregated_records_for_current_row)
       end)
       |> Enum.map(fn {key, value} ->
-        mean = (value.mean / 10.0) |> round_to_single_decimal()
-
+        # bring it back to floating point
         {key,
          %{
            min: round_to_single_decimal(value.min / 10.0),
            max: round_to_single_decimal(value.max / 10.0),
-           mean: mean
+           mean: round_to_single_decimal(value.mean / 10.0)
          }}
       end)
 
@@ -137,14 +144,15 @@ defmodule OneBRC.MeasurementsProcessor.VersionN do
         %{count: count, min: min, max: max, mean: mean} ->
           min = if val < min, do: val, else: min
           max = if val > max, do: val, else: max
+          new_c = count + 1
 
-          mean = (mean * count + val) / (count + 1)
+          mean = (mean * count + val) / new_c
 
           %{
             min: min,
             max: max,
             mean: mean,
-            count: count + 1
+            count: new_c
           }
       end
 
