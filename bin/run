@@ -26,12 +26,61 @@ run_create_baseline_results() {
     mix run -e "OneBRC.BaselineResultsGenerator.process(${1})"
 }
 
+parse_count_version_args() {
+    local -a args=("$@")
+
+    # defaults
+    local count=10_000_000
+    local version="N"
+
+    for ((i = 0; i < ${#args[@]}; i++)); do
+        case ${args[i]} in
+        --count=*)
+            count="${args[i]#*=}"
+            ;;
+        --version=*)
+            version="${args[i]#*=}"
+            ;;
+        -c | --count)
+            ((i++))
+            count="${args[i]}"
+            ;;
+        -v | --version)
+            ((i++))
+            version="${args[i]}"
+            ;;
+        *)
+            echo "Unknown parameter: ${args[i]}"
+            return 1
+            ;;
+        esac
+    done
+
+    echo "$count $version"
+}
+
 run_process_measurements() {
-    mix run -e "OneBRC.MeasurementsProcessor.process(${1})"
+    local parsed_args
+    parsed_args=$(parse_count_version_args "$@")
+    if [ $? -ne 0 ]; then
+        echo "Usage: run_process_measurements [--count=<count>] [--version=<version>]"
+        return 1
+    fi
+
+    read -r count version <<<"$parsed_args"
+    mix run -e "OneBRC.MeasurementsProcessor.process(${count}, \"${version}\")"
 }
 
 run_process_measurements.profile() {
-    mix profile.eprof -e "OneBRC.MeasurementsProcessor.process(${1})"
+    local parsed_args
+    parsed_args=$(parse_count_version_args "$@")
+    if [ $? -ne 0 ]; then
+        echo "Usage: run_process_measurements.profile [--count=<count>] [--version=<version>]"
+        return 1
+    fi
+
+    read -r count version <<<"$parsed_args"
+    mix profile.eprof -e "OneBRC.MeasurementsProcessor.process(${count}, \"${version}\")"
 }
 
 fn_exists() { declare -F "$1" >/dev/null; }

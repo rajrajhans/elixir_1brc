@@ -9,7 +9,7 @@ defmodule OneBRC.BaselineResultsGenerator do
   def process, do: process(@count)
 
   def process(count) do
-    Logger.info("Processing measurements")
+    Logger.info("Creating Baseline measurements")
 
     {time, output} = :timer.tc(fn -> process_(count) end)
     time_s = round(time / 1_000_000 * 10) / 10.0

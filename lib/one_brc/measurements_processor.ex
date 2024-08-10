@@ -3,10 +3,13 @@ defmodule OneBRC.MeasurementsProcessor do
   @count 1_000_000_000
   require Logger
 
-  def process, do: process(@count)
+  @latest_version "N"
+  require Logger
 
-  def process(count) do
-    Logger.info("Processing measurements")
+  def process, do: process(@count, @latest_version)
+
+  def process(count, version) do
+    Logger.info("Processing #{count} measurements with version #{version}")
 
     {time, {output, t1, t2, t3}} = :timer.tc(fn -> process_(count) end)
     time_s = round(time / 1_000_000 * 10) / 10.0
