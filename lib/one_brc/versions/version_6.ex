@@ -106,17 +106,35 @@ defmodule OneBRC.MeasurementsProcessor.Version6 do
         nil
 
       row ->
-        [key, value] = :binary.split(row, ";")
+        [key, t_value] = :binary.split(row, ";")
 
-        parsed_value =
-          value |> String.trim_trailing()
+        # old way
+        # [a, b] = t_value |> String.trim_trailing() |> :binary.split(".")
+        # parsed_temp = (a <> b) |> String.to_integer()
 
-        [a, b] = parsed_value |> :binary.split(".")
-        parsed_value = (a <> b) |> String.to_integer()
+        parsed_temp = t_value |> parse_temperature()
 
-        [key, parsed_value]
+        [key, parsed_temp]
     end
   end
+
+  defp parse_temperature(<<?-, d1, ?., d2, _::binary>>) do
+    -(char_to_num(d1) * 10 + char_to_num(d2))
+  end
+
+  defp parse_temperature(<<d1, ?., d2, _::binary>>) do
+    char_to_num(d1) * 10 + char_to_num(d2)
+  end
+
+  defp parse_temperature(<<?-, d1, d2, ?., d3, _::binary>>) do
+    -(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3))
+  end
+
+  defp parse_temperature(<<d1, d2, ?., d3, _::binary>>) do
+    char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)
+  end
+
+  defp char_to_num(char), do: char - ?0
 
   defp process_row([key, val], acc) do
     existing_record = Map.get(acc, key, nil)
