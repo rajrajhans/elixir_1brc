@@ -1,7 +1,10 @@
 defmodule OneBRC.MeasurementsProcessor.Version6 do
   @moduledoc """
   diff from version 5:
+  1. removes File.stream, uses prim_file instead
+  2. uses task.async with task.await_many instead of Task.async_stream
 
+  Performance: Processes 10 million rows in approx 1.3 seconds from 3.3 seconds of v5 🫣🎉
   """
   import OneBRC.MeasurementsProcessor
 
@@ -10,33 +13,38 @@ defmodule OneBRC.MeasurementsProcessor.Version6 do
   def process(count) do
     t1 = System.monotonic_time(:millisecond)
     file_path = measurements_file(count)
-    fs = File.stream!(file_path)
 
-    ets_table = :ets.new(:station_stats, [:set, :public])
+    {:ok, file} = :prim_file.open(file_path, [:raw, :binary, :read])
 
-    fs
-    |> Stream.chunk_every(10000)
-    |> Task.async_stream(
-      fn val -> Enum.map(val, &parse_row/1) end,
-      max_concurrency: System.schedulers_online(),
-      ordered: false,
-      timeout: :infinity
-    )
-    |> Stream.with_index()
-    |> Task.async_stream(
-      fn {{:ok, parsed_rows}, row_index} ->
-        interim_records =
-          Enum.reduce(parsed_rows, %{}, fn row, acc ->
-            process_row(row, acc)
-          end)
+    ets_table = :ets.new(:station_stats, [:duplicate_bag, :public])
 
-        :ets.insert(ets_table, {row_index, interim_records})
-      end,
-      max_concurrency: System.schedulers_online(),
-      ordered: false,
-      timeout: :infinity
-    )
-    |> Stream.run()
+    tasks = read_and_process(file, ets_table, [])
+
+    Task.await_many(tasks, :infinity)
+    # old way ->
+    # fs
+    # |> Stream.chunk_every(10000)
+    # |> Task.async_stream(
+    #   fn val -> Enum.map(val, &parse_row/1) end,
+    #   max_concurrency: System.schedulers_online(),
+    #   ordered: false,
+    #   timeout: :infinity
+    # )
+    # |> Stream.with_index()
+    # |> Task.async_stream(
+    #   fn {{:ok, parsed_rows}, row_index} ->
+    #     interim_records =
+    #       Enum.reduce(parsed_rows, %{}, fn row, acc ->
+    #         process_row(row, acc)
+    #       end)
+
+    #     :ets.insert(ets_table, {row_index, interim_records})
+    #   end,
+    #   max_concurrency: System.schedulers_online(),
+    #   ordered: false,
+    #   timeout: :infinity
+    # )
+    # |> Stream.run()
 
     t2 = System.monotonic_time(:millisecond)
 
@@ -97,26 +105,62 @@ defmodule OneBRC.MeasurementsProcessor.Version6 do
     result_txt
   end
 
+  defp read_and_process(file, ets_table, tasks) do
+    chunk_size = 1024 * 1024 * 20
+
+    data =
+      case :prim_file.read(file, chunk_size) do
+        :eof ->
+          nil
+
+        {:ok, data} ->
+          case :prim_file.read_line(file) do
+            {:ok, line} ->
+              <<data::binary, line::binary>>
+
+            :eof ->
+              data
+          end
+      end
+
+    if is_nil(data) do
+      tasks
+    else
+      task = Task.async(fn -> process_chunk(data, ets_table) end)
+
+      read_and_process(file, ets_table, [task | tasks])
+    end
+  end
+
+  defp process_chunk(bin, ets_table) do
+    interim_records =
+      :binary.split(bin, "\n", [:global])
+      |> Enum.map(&parse_row/1)
+      |> Enum.reduce(%{}, fn row, acc ->
+        process_row(row, acc)
+      end)
+
+    :ets.insert(ets_table, {1, interim_records})
+  end
+
   defp round_to_single_decimal(number) do
     round(number * 10) / 10.0
   end
 
+  defp parse_row("") do
+    nil
+  end
+
   defp parse_row(row) do
-    case row do
-      "" ->
-        nil
+    [key, t_value] = :binary.split(row, ";")
 
-      row ->
-        [key, t_value] = :binary.split(row, ";")
+    # old way
+    # [a, b] = t_value |> String.trim_trailing() |> :binary.split(".")
+    # parsed_temp = (a <> b) |> String.to_integer()
 
-        # old way
-        # [a, b] = t_value |> String.trim_trailing() |> :binary.split(".")
-        # parsed_temp = (a <> b) |> String.to_integer()
+    parsed_temp = t_value |> parse_temperature()
 
-        parsed_temp = t_value |> parse_temperature()
-
-        [key, parsed_temp]
-    end
+    [key, parsed_temp]
   end
 
   # parse_row_: tried this recursive pattern matching way, but it was slower than :binary.split
@@ -156,6 +200,10 @@ defmodule OneBRC.MeasurementsProcessor.Version6 do
 
   defp char_to_num(char) do
     char - ?0
+  end
+
+  defp process_row(nil, acc) do
+    acc
   end
 
   defp process_row([key, val], acc) do
