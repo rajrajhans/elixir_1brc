@@ -21,8 +21,13 @@ defmodule OneBRC.MeasurementsProcessor do
 
   defp process_with_version(count, version) do
     case String.upcase(version) do
-      "N" -> OneBRC.MeasurementsProcessor.VersionN.process(count)
+      "N" -> OneBRC.MeasurementsProcessor.Version6.process(count)
+      "1" -> OneBRC.MeasurementsProcessor.Version1.process(count)
       "2" -> OneBRC.MeasurementsProcessor.Version2.process(count)
+      "3" -> OneBRC.MeasurementsProcessor.Version3.process(count)
+      "4" -> OneBRC.MeasurementsProcessor.Version4.process(count)
+      "5" -> OneBRC.MeasurementsProcessor.Version5.process(count)
+      "6" -> OneBRC.MeasurementsProcessor.Version6.process(count)
       _ -> raise "Unknown version"
     end
   end

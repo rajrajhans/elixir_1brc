@@ -1,4 +1,12 @@
-defmodule OneBRC.MeasurementsProcessor.VersionN do
+defmodule OneBRC.MeasurementsProcessor.Version4 do
+  @moduledoc """
+  Performance: Processes 10 million rows in approx 3.4 seconds
+  Approach:
+  1. Streams and chunks the input file
+  2. Parallel parsing & processing using Task.async_stream
+  3. Intermediate aggregation using ETS tables
+  4. Final aggregation and sorting of results
+  """
   import OneBRC.MeasurementsProcessor
 
   require Logger
