@@ -3,6 +3,8 @@ defmodule OneBRC.MeasurementsProcessor.Version5 do
   diff from version 4:
   1. custom parsing of temperature values. removes use of String.to_integer, String.trim_trailing, and an extra :binary.split
   2. post-aggregation processing is done in a single pass after list concat and flattening, instead of 2 level deep reduce
+
+  Performance: Processes 10 million rows in approx 3.3 seconds
   """
   import OneBRC.MeasurementsProcessor
 
