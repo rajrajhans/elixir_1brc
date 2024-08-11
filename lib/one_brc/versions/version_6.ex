@@ -118,23 +118,44 @@ defmodule OneBRC.MeasurementsProcessor.Version6 do
     end
   end
 
+  # parse_row_: tried this recursive pattern matching way, but it was slower than :binary.split
+  # defp parse_row_(row) do
+  #   parse_row_(row, row, 0)
+  # end
+
+  # defp parse_row_(row, <<?;, _rest::binary>>, count) do
+  #   # at this point, we know that count'th char is ;, so we can split the row using pattern matching
+  #   <<city::binary-size(count), ?;, temp_value::binary>> = row
+  #   [city, parse_temperature(temp_value)]
+  # end
+
+  # defp parse_row_(row, <<_current_char, rest::binary>>, count) do
+  #   parse_row_(row, rest, count + 1)
+  # end
+
+  # ex: -4.5
   defp parse_temperature(<<?-, d1, ?., d2, _::binary>>) do
     -(char_to_num(d1) * 10 + char_to_num(d2))
   end
 
+  # ex: 4.5
   defp parse_temperature(<<d1, ?., d2, _::binary>>) do
     char_to_num(d1) * 10 + char_to_num(d2)
   end
 
+  # ex: -45.3
   defp parse_temperature(<<?-, d1, d2, ?., d3, _::binary>>) do
     -(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3))
   end
 
+  # ex: 45.3
   defp parse_temperature(<<d1, d2, ?., d3, _::binary>>) do
     char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)
   end
 
-  defp char_to_num(char), do: char - ?0
+  defp char_to_num(char) do
+    char - ?0
+  end
 
   defp process_row([key, val], acc) do
     existing_record = Map.get(acc, key, nil)
