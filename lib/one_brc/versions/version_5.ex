@@ -1,6 +1,8 @@
 defmodule OneBRC.MeasurementsProcessor.Version5 do
   @moduledoc """
-  diff from version N: post-aggregation processing is done in a single pass after list concat and flattening, instead of 2 level deep reduce
+  diff from version 4:
+  1. custom parsing of temperature values. removes use of String.to_integer, String.trim_trailing, and an extra :binary.split
+  2. post-aggregation processing is done in a single pass after list concat and flattening, instead of 2 level deep reduce
   """
   import OneBRC.MeasurementsProcessor
 
@@ -106,16 +108,55 @@ defmodule OneBRC.MeasurementsProcessor.Version5 do
         nil
 
       row ->
-        [key, value] = :binary.split(row, ";")
+        [key, t_value] = :binary.split(row, ";")
 
-        parsed_value =
-          value |> String.trim_trailing()
+        # old way
+        # [a, b] = t_value |> String.trim_trailing() |> :binary.split(".")
+        # parsed_temp = (a <> b) |> String.to_integer()
 
-        [a, b] = parsed_value |> :binary.split(".")
-        parsed_value = (a <> b) |> String.to_integer()
+        parsed_temp = t_value |> parse_temperature()
 
-        [key, parsed_value]
+        [key, parsed_temp]
     end
+  end
+
+  # parse_row_: tried this recursive pattern matching way, but it was slower than :binary.split
+  # defp parse_row_(row) do
+  #   parse_row_(row, row, 0)
+  # end
+
+  # defp parse_row_(row, <<?;, _rest::binary>>, count) do
+  #   # at this point, we know that count'th char is ;, so we can split the row using pattern matching
+  #   <<city::binary-size(count), ?;, temp_value::binary>> = row
+  #   [city, parse_temperature(temp_value)]
+  # end
+
+  # defp parse_row_(row, <<_current_char, rest::binary>>, count) do
+  #   parse_row_(row, rest, count + 1)
+  # end
+
+  # ex: -4.5
+  defp parse_temperature(<<?-, d1, ?., d2, _::binary>>) do
+    -(char_to_num(d1) * 10 + char_to_num(d2))
+  end
+
+  # ex: 4.5
+  defp parse_temperature(<<d1, ?., d2, _::binary>>) do
+    char_to_num(d1) * 10 + char_to_num(d2)
+  end
+
+  # ex: -45.3
+  defp parse_temperature(<<?-, d1, d2, ?., d3, _::binary>>) do
+    -(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3))
+  end
+
+  # ex: 45.3
+  defp parse_temperature(<<d1, d2, ?., d3, _::binary>>) do
+    char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)
+  end
+
+  defp char_to_num(char) do
+    char - ?0
   end
 
   defp process_row([key, val], acc) do

@@ -1,6 +1,7 @@
 defmodule OneBRC.MeasurementsProcessor.Version6 do
   @moduledoc """
-  diff from version N: post-aggregation processing is done in a single pass after list concat and flattening, instead of 2 level deep reduce
+  diff from version 5:
+
   """
   import OneBRC.MeasurementsProcessor
 
