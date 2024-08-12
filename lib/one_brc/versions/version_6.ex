@@ -106,7 +106,7 @@ defmodule OneBRC.MeasurementsProcessor.Version6 do
   end
 
   defp read_and_process(file, ets_table, tasks) do
-    chunk_size = 1024 * 1024 * 20
+    chunk_size = 1024 * 1024 * 1
 
     data =
       case :prim_file.read(file, chunk_size) do
