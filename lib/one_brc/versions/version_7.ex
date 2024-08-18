@@ -91,9 +91,11 @@ end
 defmodule OneBRC.MeasurementsProcessor.Version7 do
   @moduledoc """
   diff from version 6:
-  todo
+  1. implements a fixed worker pool. This approach minimizes process creation/destruction overhead, as workers are reused
+  2. removes some unnecessary enum.reduce calls by using process dictionary.
+  3. removes using a common ets table for storing intermediate results, by using workers' process dictionary
 
-  Performance:
+  Performance: Processes 10 million rows in approx 400ms
   """
   import OneBRC.MeasurementsProcessor
   alias OneBRC.MeasurementsProcessor.Version7.Worker
