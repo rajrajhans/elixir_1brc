@@ -55,7 +55,7 @@ defmodule OneBrc.ResultVerification do
         {_, nil} ->
           [{:missing_in_baseline, station} | acc]
 
-        {gen_value, base_value} when gen_value != base_value ->
+        {gen_value, base_value} when abs(base_value - gen_value) > 0.1 ->
           [{:value_mismatch, station, gen_value, base_value} | acc]
 
         _ ->

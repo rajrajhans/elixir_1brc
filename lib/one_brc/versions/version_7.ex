@@ -15,13 +15,13 @@ defmodule OneBRC.MeasurementsProcessor.Version7.Worker do
   end
 
   defp process_chunk(bin, ets_table) do
-    interim_records =
-      :binary.split(bin, "\n", [:global])
-      |> Enum.map(&parse_row/1)
-      |> Enum.reduce(%{}, fn row, acc ->
-        process_row(row, acc)
-      end)
+    :binary.split(bin, "\n", [:global])
+    |> Enum.map(&parse_row/1)
+    |> Enum.map(fn row ->
+      process_row(row)
+    end)
 
+    interim_records = :erlang.get()
     :ets.insert(ets_table, {1, interim_records})
   end
 
@@ -59,39 +59,38 @@ defmodule OneBRC.MeasurementsProcessor.Version7.Worker do
     char - ?0
   end
 
-  defp process_row(nil, acc) do
-    acc
+  defp process_row(nil) do
+    nil
   end
 
-  defp process_row([key, val], acc) do
-    existing_record = Map.get(acc, key, nil)
+  defp process_row([key, val]) do
+    existing_record = :erlang.get(key)
 
     new_record =
       case existing_record do
-        nil ->
+        :undefined ->
           %{
             min: val,
             max: val,
-            mean: val,
+            sum: val,
             count: 1
           }
 
-        %{count: count, min: min, max: max, mean: mean} ->
+        %{count: count, min: min, max: max, sum: sum} ->
           min = if val < min, do: val, else: min
           max = if val > max, do: val, else: max
           new_c = count + 1
-
-          mean = (mean * count + val) / new_c
+          new_sum = sum + val
 
           %{
             min: min,
             max: max,
-            mean: mean,
+            sum: new_sum,
             count: new_c
           }
       end
 
-    Map.put(acc, key, new_record)
+    :erlang.put(key, new_record)
   end
 end
 
@@ -115,7 +114,7 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
 
     ets_table = :ets.new(:station_stats, [:duplicate_bag, :public])
 
-    worker_count = System.schedulers_online()
+    worker_count = System.schedulers_online() * 2
 
     # boot up workers
     Enum.map(1..worker_count, fn _ ->
@@ -132,6 +131,8 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
       end
     end)
 
+    :prim_file.close(file)
+
     t2 = System.monotonic_time(:millisecond)
 
     result =
@@ -146,17 +147,17 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
             nil ->
               val
 
-            %{count: count, min: min, max: max, mean: mean} ->
+            %{count: count, min: min, max: max, sum: sum} ->
               min = if val.min < min, do: val.min, else: min
               max = if val.max > max, do: val.max, else: max
               new_c = count + val.count
 
-              mean = (mean * count + val.mean * val.count) / new_c
+              sum = sum + val.sum
 
               %{
                 min: min,
                 max: max,
-                mean: mean,
+                sum: sum,
                 count: new_c
               }
           end
@@ -169,7 +170,7 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
          %{
            min: round_to_single_decimal(value.min / 10.0),
            max: round_to_single_decimal(value.max / 10.0),
-           mean: round_to_single_decimal(value.mean / 10.0)
+           mean: round_to_single_decimal(value.sum / value.count / 10.0)
          }}
       end)
 
