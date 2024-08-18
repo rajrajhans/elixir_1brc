@@ -1,0 +1,59 @@
+# :prim_file
+
+## read and read_line
+
+```elixir
+file_path = "./data/measurements.10000.txt"
+
+{:ok, file} = :prim_file.open(file_path, [:raw, :read, :binary])
+```
+
+```elixir
+{:ok, data} = :prim_file.read(file, 1024)
+```
+
+```elixir
+{:ok, data} = :prim_file.read(file, 1024)
+```
+
+```elixir
+{:ok, data} = :prim_file.read_line(file)
+```
+
+```elixir
+{:ok, data} = :prim_file.read(file, 1024)
+byte_size(data)
+```
+
+## reading full file
+
+```elixir
+defmodule FileReader do
+  @file_path file_path
+
+  def read() do
+    {:ok, file} = :prim_file.open(@file_path, [:raw, :read, :binary])
+
+    do_read(file, 1024 * 1024, [])
+  end
+
+  def do_read(file, chunk_size, acc) do
+    case :prim_file.read(file, chunk_size) do
+      :eof ->
+        :prim_file.close(file)
+        Enum.reverse(acc)
+
+      {:ok, data} ->
+        do_read(file, chunk_size, [data | acc])
+    end
+  end
+end
+
+[data] = FileReader.read()
+
+data |> byte_size()
+```
+
+```elixir
+File.read!(file_path) |> byte_size()
+```

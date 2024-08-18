@@ -1,0 +1,104 @@
+# 1brc playground (rough)
+
+## Section
+
+```elixir
+defmodule Y do
+  def parse_row(line) do
+    parse_row(line, line, 0)
+  end
+
+  def parse_row(line, <<?;, _rest::binary>>, count) do
+    <<city::binary-size(count), ?;, temp_value::binary>> = line
+    {city, parse_temperature(temp_value)}
+  end
+
+  def parse_row(line, <<_current_char, rest::binary>>, count) do
+    parse_row(line, rest, count + 1)
+  end
+
+  def parse_temperature(<<?-, d1, ?., d2, _::binary>>) do
+    -(char_to_num(d1) * 10 + char_to_num(d2))
+  end
+
+  def parse_temperature(<<d1, ?., d2, _::binary>>) do
+    char_to_num(d1) * 10 + char_to_num(d2)
+  end
+
+  def parse_temperature(<<?-, d1, d2, ?., d3, _::binary>>) do
+    -(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3))
+  end
+
+  def parse_temperature(<<d1, d2, ?., d3, _::binary>>) do
+    char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)
+  end
+
+  defp char_to_num(char), do: char - ?0
+end
+
+x = "Mumbai;7.2"
+
+Y.parse_row(x)
+```
+
+```elixir
+# <<b>> = "4"
+
+# b - ?0
+
+<<city::binary-size(6), ?;, temp::binary>> = "Mumbai;7.2"
+
+{city, temp}
+```
+
+```elixir
+file_path = "./data/measurements.10000.txt"
+
+defmodule MyFileReader do
+  @file_path file_path
+
+  def read() do
+    {:ok, file} = :prim_file.open(@file_path, [:raw, :read, :binary])
+
+    do_read(file, 1024 * 1024, [])
+  end
+
+  def do_read(file, chunk_size, acc) do
+    case :prim_file.read(file, chunk_size) do
+      :eof ->
+        :prim_file.close(file)
+        Enum.reverse(acc)
+
+      {:ok, data} ->
+        do_read(file, chunk_size, [data | acc])
+    end
+  end
+end
+```
+
+```elixir
+{:ok, file} = :prim_file.open(file_path, [:raw, :read, :binary])
+
+{:ok, data} = :prim_file.read(file, 1024)
+
+# IO.puts(data)
+
+# Y.parse_row(data)
+
+:binary.split(data, "\n", [:global])
+```
+
+```elixir
+ets_table = :ets.new(:station_stats, [:duplicate_bag, :public])
+
+:ets.insert(ets_table, {"", %{x: 1}})
+```
+
+```elixir
+:ets.insert(ets_table, {"", %{x: 1}})
+:ets.tab2list(ets_table)
+```
+
+```elixir
+[1, 2, 3, ""] |> Enum.filter(fn x -> x == "" end)
+```

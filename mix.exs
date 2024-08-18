@@ -26,6 +26,7 @@ defmodule OneBRC.MixProject do
       {:jason, "~> 1.4"},
       {:benchee, "~> 1.3"},
       {:benchee_html, "~> 1.0"},
+      {:plug_cowboy, "~> 2.6"},
       {:eflambe, "~> 0.3.0"}
     ]
   end

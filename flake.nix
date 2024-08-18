@@ -20,6 +20,7 @@
           pkgs.clang_13
           pkgs.cmake
           pkgs.openssl
+          pkgs.concurrently
           pkgs.beam.packages.erlangR26.elixir_1_16
         ];
 

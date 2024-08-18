@@ -7,7 +7,8 @@ run_deps() {
 }
 
 run_iex() {
-    iex --sname OneBRC -S mix
+    export APP_NAME=ex_one_brc
+    iex --sname $APP_NAME --cookie $APP_NAME -S mix
 }
 
 run_format() {
@@ -119,8 +120,8 @@ run_process_measurements.profile.benchee() {
         random_num = :rand.uniform(1_000_000)
         Benchee.run(
             %{
-                \"v6\" => fn -> OneBRC.MeasurementsProcessor.process(10_000_000, \"6\") end,
-                \"v7\" => fn -> OneBRC.MeasurementsProcessor.process(10_000_000, \"7\") end
+                \"v7\" => fn -> OneBRC.MeasurementsProcessor.process(10_000_000, \"7\") end,
+                \"v6\" => fn -> OneBRC.MeasurementsProcessor.process(10_000_000, \"6\") end
             },
             warmup: 5,
             formatters: [
@@ -129,6 +130,32 @@ run_process_measurements.profile.benchee() {
             ]
         )
     "
+}
+
+run_livebook.setup() {
+    mix escript.install hex livebook 0.12.1 --force
+    mkdir -p $(pwd)/.livebook
+}
+
+run_livebook.server() {
+    export APP_NAME=ex_one_brc
+    export LIVEBOOK_HOME=$(pwd)/livebooks
+    export LIVEBOOK_DATA_PATH=$(pwd)/.livebook
+    export LIVEBOOK_TOKEN_ENABLED=false
+    export LIVEBOOK_COOKIE=$APP_NAME
+    export LIVEBOOK_DEFAULT_RUNTIME="attached:$APP_NAME@$(hostname | sed "s/.local//"):$APP_NAME"
+
+    if [[ $(uname) == "Darwin" ]] && [[ $(uname -m) == 'arm64' ]]; then
+        export EXLA_FLAGS=--config=macos_arm64
+    fi
+
+    livebook server
+}
+
+run_livebook() {
+    concurrently -n "iex,livebook" -c "blue.bold,green.bold,red.bold" \
+        "run iex" \
+        "run livebook.server"
 }
 
 fn_exists() { declare -F "$1" >/dev/null; }
