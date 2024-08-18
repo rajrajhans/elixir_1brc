@@ -30,9 +30,17 @@ defmodule OneBRC.MeasurementsProcessor.Version7.Worker do
   end
 
   defp parse_row(row) do
-    [key, t_value] = :binary.split(row, ";")
-    parsed_temp = t_value |> parse_temperature()
-    [key, parsed_temp]
+    parse_row(row, row, 0)
+  end
+
+  defp parse_row(row, <<?;, _rest::binary>>, count) do
+    # at this point, we know that count'th char is ;, so we can split the row using pattern matching
+    <<city::binary-size(count), ?;, temp_value::binary>> = row
+    [city, parse_temperature(temp_value)]
+  end
+
+  defp parse_row(row, <<_current_char, rest::binary>>, count) do
+    parse_row(row, rest, count + 1)
   end
 
   # ex: -4.5
