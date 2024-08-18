@@ -77,25 +77,15 @@ defmodule OneBRC.MeasurementsProcessor.Version7.Worker do
     new_record =
       case existing_record do
         :undefined ->
-          %{
-            min: val,
-            max: val,
-            sum: val,
-            count: 1
-          }
+          {val, val, val, 1}
 
-        %{count: count, min: min, max: max, sum: sum} ->
+        {min, max, sum, count} ->
           min = if val < min, do: val, else: min
           max = if val > max, do: val, else: max
           new_c = count + 1
           new_sum = sum + val
 
-          %{
-            min: min,
-            max: max,
-            sum: new_sum,
-            count: new_c
-          }
+          {min, max, new_sum, new_c}
       end
 
     :erlang.put(key, new_record)
@@ -155,38 +145,32 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
     result =
       results
       |> List.flatten()
-      |> Enum.reduce(%{}, fn {key, val}, acc ->
+      |> Enum.reduce(%{}, fn {key, {min_1, max_1, sum_1, count_1}}, acc ->
         existing_record = Map.get(acc, key, nil)
 
         new_record =
           case existing_record do
             nil ->
-              val
+              {min_1, max_1, sum_1, count_1}
 
-            %{count: count, min: min, max: max, sum: sum} ->
-              min = if val.min < min, do: val.min, else: min
-              max = if val.max > max, do: val.max, else: max
-              new_c = count + val.count
+            {min_2, max_2, sum_2, count_2} ->
+              min = if min_1 < min_2, do: min_1, else: min_2
+              max = if max_1 > max_2, do: max_1, else: max_2
+              new_c = count_1 + count_2
+              sum = sum_1 + sum_2
 
-              sum = sum + val.sum
-
-              %{
-                min: min,
-                max: max,
-                sum: sum,
-                count: new_c
-              }
+              {min, max, sum, new_c}
           end
 
         Map.put(acc, key, new_record)
       end)
-      |> Enum.map(fn {key, value} ->
+      |> Enum.map(fn {key, {min, max, sum, count}} ->
         # bring it back to floating point
         {key,
          %{
-           min: round_to_single_decimal(value.min / 10.0),
-           max: round_to_single_decimal(value.max / 10.0),
-           mean: round_to_single_decimal(value.sum / value.count / 10.0)
+           min: round_to_single_decimal(min / 10.0),
+           max: round_to_single_decimal(max / 10.0),
+           mean: round_to_single_decimal(sum / count / 10.0)
          }}
       end)
 
