@@ -1,6 +1,6 @@
 defmodule OneBRC.MeasurementsProcessor.Version7.Worker do
   def run(parent_pid) do
-    ask_for_work(parent_pid)
+    send(parent_pid, {:give_work, self()})
 
     receive do
       {:do_work, chunk} ->
@@ -11,10 +11,6 @@ defmodule OneBRC.MeasurementsProcessor.Version7.Worker do
         send(parent_pid, {:result, :erlang.get()})
         # die
     end
-  end
-
-  defp ask_for_work(parent_pid) do
-    send(parent_pid, {:give_work, self()})
   end
 
   defp process_chunk(bin) do
@@ -107,15 +103,18 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
   def process(count) do
     t1 = System.monotonic_time(:millisecond)
     file_path = measurements_file(count)
-
-    {:ok, file} = :prim_file.open(file_path, [:raw, :binary, :read])
     worker_count = System.schedulers_online() * 2
     # boot up workers
+    parent = self()
+
     wpids =
       Enum.map(1..worker_count, fn _ ->
-        spawn_link(Worker, :run, [self()])
+        spawn_link(fn ->
+          Worker.run(parent)
+        end)
       end)
 
+    {:ok, file} = :prim_file.open(file_path, [:raw, :binary, :read])
     :ok = read_and_process(file)
 
     # wait for all workers to finish
