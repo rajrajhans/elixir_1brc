@@ -55,5 +55,9 @@ data |> byte_size()
 ```
 
 ```elixir
+:binary.split(data, "\n", [:global])
+```
+
+```elixir
 File.read!(file_path) |> byte_size()
 ```

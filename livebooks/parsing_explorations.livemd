@@ -1,6 +1,6 @@
-# 1brc playground (rough)
+# parsing explorations
 
-## Section
+## Parse Line
 
 ```elixir
 defmodule Y do
@@ -51,42 +51,78 @@ Y.parse_row(x)
 {city, temp}
 ```
 
+## Parse multiple lines
+
 ```elixir
-file_path = "./data/measurements.10000.txt"
+data = "Sacramento;16.2\nMakurdi;27.9\nTromsø;3.2"
+```
 
-defmodule MyFileReader do
-  @file_path file_path
-
-  def read() do
-    {:ok, file} = :prim_file.open(@file_path, [:raw, :read, :binary])
-
-    do_read(file, 1024 * 1024, [])
+```elixir
+defmodule Z do
+  def parse_rows(input) do
+    parse_rows(input, [])
   end
 
-  def do_read(file, chunk_size, acc) do
-    case :prim_file.read(file, chunk_size) do
-      :eof ->
-        :prim_file.close(file)
-        Enum.reverse(acc)
+  def parse_rows("", acc), do: acc
 
-      {:ok, data} ->
-        do_read(file, chunk_size, [data | acc])
-    end
+  def parse_rows(input, acc) do
+    {city, temp, rest} = parse_row(input)
+    parse_rows(rest, [{city, temp} | acc])
   end
+
+  def parse_row(line) do
+    parse_row(line, line, 0)
+  end
+
+  def parse_row(line, <<?;, _rest::binary>>, count) do
+    <<city::binary-size(count), ?;, temp_value::binary>> = line
+    {temp, remaining} = parse_temperature(temp_value)
+    {city, temp, remaining}
+  end
+
+  def parse_row(line, <<_current_char, rest::binary>>, count) do
+    parse_row(line, rest, count + 1)
+  end
+
+  def parse_temperature(<<?-, d1, ?., d2, ?\n, rest::binary>>) do
+    {-(char_to_num(d1) * 10 + char_to_num(d2)), rest}
+  end
+
+  def parse_temperature(<<?-, d1, ?., d2, rest::binary>>) do
+    {-(char_to_num(d1) * 10 + char_to_num(d2)), rest}
+  end
+
+  def parse_temperature(<<d1, ?., d2, ?\n, rest::binary>>) do
+    {char_to_num(d1) * 10 + char_to_num(d2), rest}
+  end
+
+  def parse_temperature(<<d1, ?., d2, rest::binary>>) do
+    {char_to_num(d1) * 10 + char_to_num(d2), rest}
+  end
+
+  def parse_temperature(<<?-, d1, d2, ?., d3, ?\n, rest::binary>>) do
+    {-(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)), rest}
+  end
+
+  def parse_temperature(<<?-, d1, d2, ?., d3, rest::binary>>) do
+    {-(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)), rest}
+  end
+
+  def parse_temperature(<<d1, d2, ?., d3, ?\n, rest::binary>>) do
+    {char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3), rest}
+  end
+
+  def parse_temperature(<<d1, d2, ?., d3, rest::binary>>) do
+    {char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3), rest}
+  end
+
+  defp char_to_num(char), do: char - ?0
 end
+
+result = Z.parse_rows(data)
 ```
 
-```elixir
-{:ok, file} = :prim_file.open(file_path, [:raw, :read, :binary])
-
-{:ok, data} = :prim_file.read(file, 1024)
-
-# IO.puts(data)
-
-# Y.parse_row(data)
-
-:binary.split(data, "\n", [:global])
-```
+## ets table types
 
 ```elixir
 ets_table = :ets.new(:station_stats, [:duplicate_bag, :public])
