@@ -116,20 +116,7 @@ run_process_measurements.profile.eflambe() {
 
 run_process_measurements.profile.benchee() {
     # useful for comparing different versions
-    mix run -e "
-        random_num = :rand.uniform(1_000_000)
-        Benchee.run(
-            %{
-                \"v7\" => fn -> OneBRC.MeasurementsProcessor.process(10_000_000, \"7\") end,
-                \"v6\" => fn -> OneBRC.MeasurementsProcessor.process(10_000_000, \"6\") end
-            },
-            warmup: 5,
-            formatters: [
-                {Benchee.Formatters.HTML, file: \"data/benchee_#{random_num}.html\"},
-                Benchee.Formatters.Console
-            ]
-        )
-    "
+    mix run benchee.exs
 }
 
 run_livebook.setup() {
