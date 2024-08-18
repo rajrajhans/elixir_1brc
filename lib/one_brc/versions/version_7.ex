@@ -3,10 +3,13 @@ defmodule OneBRC.MeasurementsProcessor.Version7.Worker do
     ask_for_work(parent_pid)
 
     receive do
-      {:do_work, chunk, ets_table} ->
-        process_chunk(chunk, ets_table)
-
+      {:do_work, chunk} ->
+        process_chunk(chunk)
         run(parent_pid)
+
+      :result ->
+        send(parent_pid, {:result, :erlang.get()})
+        # die
     end
   end
 
@@ -14,15 +17,12 @@ defmodule OneBRC.MeasurementsProcessor.Version7.Worker do
     send(parent_pid, {:give_work, self()})
   end
 
-  defp process_chunk(bin, ets_table) do
+  defp process_chunk(bin) do
     :binary.split(bin, "\n", [:global])
     |> Enum.map(&parse_row/1)
     |> Enum.map(fn row ->
       process_row(row)
     end)
-
-    interim_records = :erlang.get()
-    :ets.insert(ets_table, {1, interim_records})
   end
 
   defp parse_row("") do
@@ -111,17 +111,14 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
     file_path = measurements_file(count)
 
     {:ok, file} = :prim_file.open(file_path, [:raw, :binary, :read])
-
-    ets_table = :ets.new(:station_stats, [:duplicate_bag, :public])
-
     worker_count = System.schedulers_online() * 2
-
     # boot up workers
-    Enum.map(1..worker_count, fn _ ->
-      spawn_link(Worker, :run, [self()])
-    end)
+    wpids =
+      Enum.map(1..worker_count, fn _ ->
+        spawn_link(Worker, :run, [self()])
+      end)
 
-    :ok = read_and_process(file, ets_table)
+    :ok = read_and_process(file)
 
     # wait for all workers to finish
     Enum.map(1..worker_count, fn _ ->
@@ -131,13 +128,24 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
       end
     end)
 
+    results =
+      wpids
+      |> Enum.map(fn wpid ->
+        send(wpid, :result)
+      end)
+      |> Enum.map(fn _ ->
+        receive do
+          {:result, result} ->
+            result
+        end
+      end)
+
     :prim_file.close(file)
 
     t2 = System.monotonic_time(:millisecond)
 
     result =
-      :ets.tab2list(ets_table)
-      |> Enum.reduce([], fn {_, m}, acc -> [acc | Enum.into(m, [])] end)
+      results
       |> List.flatten()
       |> Enum.reduce(%{}, fn {key, val}, acc ->
         existing_record = Map.get(acc, key, nil)
@@ -192,7 +200,7 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
     result_txt
   end
 
-  defp read_and_process(file, ets_table) do
+  defp read_and_process(file) do
     chunk_size = 1024 * 1024 * 1
 
     data =
@@ -213,10 +221,10 @@ defmodule OneBRC.MeasurementsProcessor.Version7 do
     if !is_nil(data) do
       receive do
         {:give_work, worker_pid} ->
-          send(worker_pid, {:do_work, data, ets_table})
+          send(worker_pid, {:do_work, data})
       end
 
-      read_and_process(file, ets_table)
+      read_and_process(file)
     else
       :ok
     end
