@@ -28,6 +28,7 @@ I took to solve the challenge in two parts - first being to optimize the creatio
 - `run create_baseline_results 1000` - creates a file `./data/result_baseline.10000.json` with the correct results for 1000 measurements. This file can then be used to verify the correctness of results we get while trying to optimize the processing.
 - `run process_measurements 1000` - processes the file `./data/measurements.1000.txt` with 1000 measurements, generates `result.10000.json` & verifies their correctness with the file `./data/result_baseline.10000.json`.
 - `run process_measurements.profile 1000` - processes the file `./data/measurements.1000.txt` with 1000 measurements and profiles the execution using `eprof`.
+- `run all_versions --count 10000` - runs all versions of the measurements processor with 10000 measurements. This will create a file `./tmp/all_versions_outputs/version-v_count-10000.txt` with the results of all versions. Useful to measure time taken by each version.
 - Check `./bin/run` to see what the above commands do.
 
 ## Setting up this repo

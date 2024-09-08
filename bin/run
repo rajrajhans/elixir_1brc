@@ -92,6 +92,38 @@ run_process_measurements.profile.eprof() {
     mix profile.eprof -e "OneBRC.MeasurementsProcessor.process(${count}, \"${version}\")"
 }
 
+run_all_versions() {
+    local parsed_args
+    parsed_args=$(parse_count_version_args "$@")
+    if [ $? -ne 0 ]; then
+        echo "Usage: run_process_measurements [--count=<count>] [--version=<version>]"
+        return 1
+    fi
+
+    read -r count _version <<<"$parsed_args"
+
+    local commands=(
+        "process_measurements --count=${count} --version=3"
+        "process_measurements --count=${count} --version=2"
+        "process_measurements --count=${count} --version=1"
+        "process_measurements --count=${count} --version=4"
+        "process_measurements --count=${count} --version=5"
+    )
+
+    rm -rf ./tmp/all_versions_outputs
+    mkdir -p ./tmp/all_versions_outputs
+
+    for cmd in "${commands[@]}"; do
+        echo "Running: $cmd"
+        version=$(echo "$cmd" | grep -oP '(?<=--version=)\d+')
+        count=$(echo "$cmd" | grep -oP '(?<=--count=)\d+')
+        output_file="./tmp/all_versions_outputs/version-${version}_count-${count}.txt"
+        run $cmd >"$output_file" 2>&1
+        echo ">> Output saved to: $output_file"
+        echo
+    done
+}
+
 run_process_measurements.profile.eflambe() {
     local parsed_args
     parsed_args=$(parse_count_version_args "$@")
