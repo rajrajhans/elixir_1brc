@@ -1,0 +1,61 @@
+#!/bin/bash
+
+if [ "$#" -lt 1 ]; then
+    echo "Usage: $0 <command_to_run> [args...]"
+    exit 1
+fi
+
+command_to_run="$*"
+
+baseline_duration=2
+total_duration=5
+interval=0.1
+output_file="cpu_usage_graph.png"
+
+get_cpu_usage() {
+    /usr/bin/top -l 1 -n 0 -s 0 | awk '/CPU usage/ {print 100 - $7}'
+}
+
+echo "Establishing baseline for $baseline_duration seconds..."
+
+# baseline data
+for ((i = 0; i < $(echo "$baseline_duration/$interval" | bc); i++)); do
+    cpu_usage=$(get_cpu_usage)
+    echo "$i $cpu_usage" >>cpu_data.txt
+    sleep $interval
+done
+
+echo "Running command: $command_to_run"
+
+$command_to_run &
+command_pid=$!
+
+for ((i = $(echo "$baseline_duration/$interval" | bc); i < $(echo "$total_duration/$interval" | bc); i++)); do
+    cpu_usage=$(get_cpu_usage)
+    echo "$i $cpu_usage" >>cpu_data.txt
+    sleep $interval
+done
+
+echo "set terminal pngcairo enhanced font 'Arial,12' size 800,600
+set output '$output_file'
+set title 'Overall CPU Usage Over Time' font 'Arial,16'
+set xlabel 'Time (${interval}s intervals)' font 'Arial,12'
+set ylabel 'CPU Usage (%)' font 'Arial,12'
+set grid
+set style line 1 lc rgb '#0060ad' lt 1 lw 2 pt 7 ps 1.5
+set arrow from $(echo "$baseline_duration/$interval" | bc),0 to $(echo "$baseline_duration/$interval" | bc),100 nohead lc rgb 'red' lw 2
+set label 'Script Start' at $(echo "$baseline_duration/$interval" | bc),101 center tc rgb 'red' font 'Arial,10'
+plot 'cpu_data.txt' with lines title 'CPU Usage' ls 1" >plot.gp
+
+gnuplot plot.gp
+
+rm cpu_data.txt plot.gp
+
+echo "CPU usage graph has been saved as $output_file"
+
+if ps -p $command_pid >/dev/null; then
+    echo "The process is still running. You may want to terminate it manually."
+    echo "Its PID is $command_pid"
+else
+    echo "The process has finished execution."
+fi

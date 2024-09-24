@@ -19,6 +19,7 @@
           pkgs.gcc12
           pkgs.clang_13
           pkgs.cmake
+          pkgs.gnuplot
           pkgs.openssl
           pkgs.concurrently
           pkgs.beam.packages.erlangR26.elixir_1_16
