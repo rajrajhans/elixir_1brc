@@ -1,6 +1,6 @@
 defmodule OneBRC.MeasurementsProcessor.Version8.Worker do
   def run(parent_pid) do
-    ask_for_work(parent_pid)
+    send(parent_pid, {:give_work, self()})
 
     receive do
       {:do_work, chunk} ->
@@ -13,81 +13,72 @@ defmodule OneBRC.MeasurementsProcessor.Version8.Worker do
     end
   end
 
-  defp ask_for_work(parent_pid) do
-    send(parent_pid, {:give_work, self()})
-  end
-
   defp process_chunk(bin) do
-    parse_rows(bin)
-    |> Enum.map(fn row ->
-      process_row(row)
-    end)
+    process_chunk_lines(bin)
   end
 
-  def parse_rows(input) do
-    parse_rows(input, [])
+  defp process_chunk_lines(<<>>) do
+    :ok
   end
 
-  def parse_rows("", acc), do: acc
+  defp process_chunk_lines(bin) do
+    case parse_line(bin) do
+      {key, val, rest} ->
+        process_row(key, val)
+        process_chunk_lines(rest)
 
-  def parse_rows(input, acc) do
-    {city, temp, rest} = parse_row(input)
-    parse_rows(rest, [{city, temp} | acc])
+      :incomplete ->
+        :ok
+    end
   end
 
-  def parse_row(line) do
-    parse_row(line, line, 0)
+  defp parse_line(bin) do
+    parse_weather_station(bin, bin, 0)
   end
 
-  def parse_row(line, <<?;, _rest::binary>>, count) do
-    <<city::binary-size(count), ?;, temp_value::binary>> = line
-    {temp, remaining} = parse_temperature(temp_value)
-    {city, temp, remaining}
+  defp parse_weather_station(bin, <<";", _rest::binary>>, count) do
+    <<key::binary-size(count), ";", temp_bin::binary>> = bin
+
+    case parse_temperature(temp_bin) do
+      {val, <<"\n", rest::binary>>} -> {key, val, rest}
+      {val, <<>>} -> {key, val, <<>>}
+      :error -> :incomplete
+    end
   end
 
-  def parse_row(line, <<_current_char, rest::binary>>, count) do
-    parse_row(line, rest, count + 1)
+  defp parse_weather_station(bin, <<_c, rest::binary>>, count) do
+    parse_weather_station(bin, rest, count + 1)
   end
 
-  def parse_temperature(<<?-, d1, ?., d2, ?\n, rest::binary>>) do
-    {-(char_to_num(d1) * 10 + char_to_num(d2)), rest}
+  defp parse_weather_station(_bin, <<>>, _count) do
+    :incomplete
   end
 
-  def parse_temperature(<<?-, d1, ?., d2, rest::binary>>) do
-    {-(char_to_num(d1) * 10 + char_to_num(d2)), rest}
+  defp parse_temperature(<<?-, d2, d1, ?., d01, rest::binary>>) do
+    {-(char_to_num(d2) * 100 + char_to_num(d1) * 10 + char_to_num(d01)), rest}
   end
 
-  def parse_temperature(<<d1, ?., d2, ?\n, rest::binary>>) do
-    {char_to_num(d1) * 10 + char_to_num(d2), rest}
+  defp parse_temperature(<<?-, d1, ?., d01, rest::binary>>) do
+    {-(char_to_num(d1) * 10 + char_to_num(d01)), rest}
   end
 
-  def parse_temperature(<<d1, ?., d2, rest::binary>>) do
-    {char_to_num(d1) * 10 + char_to_num(d2), rest}
+  defp parse_temperature(<<d2, d1, ?., d01, rest::binary>>) do
+    {char_to_num(d2) * 100 + char_to_num(d1) * 10 + char_to_num(d01), rest}
   end
 
-  def parse_temperature(<<?-, d1, d2, ?., d3, ?\n, rest::binary>>) do
-    {-(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)), rest}
+  defp parse_temperature(<<d1, ?., d01, rest::binary>>) do
+    {char_to_num(d1) * 10 + char_to_num(d01), rest}
   end
 
-  def parse_temperature(<<?-, d1, d2, ?., d3, rest::binary>>) do
-    {-(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)), rest}
+  defp parse_temperature(_) do
+    :error
   end
 
-  def parse_temperature(<<d1, d2, ?., d3, ?\n, rest::binary>>) do
-    {char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3), rest}
+  defp char_to_num(char) do
+    char - ?0
   end
 
-  def parse_temperature(<<d1, d2, ?., d3, rest::binary>>) do
-    {char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3), rest}
-  end
-
-  defp char_to_num(char), do: char - ?0
-
-  defp process_row(nil) do
-    nil
-  end
-
-  defp process_row({key, val}) do
+  defp process_row(key, val) do
     existing_record = :erlang.get(key)
 
     new_record =
@@ -110,8 +101,8 @@ end
 
 defmodule OneBRC.MeasurementsProcessor.Version8 do
   @moduledoc """
-  diff from version 6:
-  todo
+  diff from version 7:
+  1. removed :binary.split, using recursive parsing with pattern matching instead.
 
   Performance:
   """
@@ -123,15 +114,18 @@ defmodule OneBRC.MeasurementsProcessor.Version8 do
   def process(count) do
     t1 = System.monotonic_time(:millisecond)
     file_path = measurements_file(count)
-
-    {:ok, file} = :prim_file.open(file_path, [:raw, :binary, :read])
     worker_count = System.schedulers_online() * 2
     # boot up workers
+    parent = self()
+
     wpids =
       Enum.map(1..worker_count, fn _ ->
-        spawn_link(Worker, :run, [self()])
+        spawn_link(fn ->
+          Worker.run(parent)
+        end)
       end)
 
+    {:ok, file} = :prim_file.open(file_path, [:raw, :binary, :read])
     :ok = read_and_process(file)
 
     # wait for all workers to finish
@@ -162,14 +156,12 @@ defmodule OneBRC.MeasurementsProcessor.Version8 do
       results
       |> List.flatten()
       |> Enum.reduce(%{}, fn {key, {min_1, max_1, sum_1, count_1}}, acc ->
-        existing_record = Map.get(acc, key, nil)
-
         new_record =
-          case existing_record do
-            nil ->
+          case Map.fetch(acc, key) do
+            :error ->
               {min_1, max_1, sum_1, count_1}
 
-            {min_2, max_2, sum_2, count_2} ->
+            {:ok, {min_2, max_2, sum_2, count_2}} ->
               min = if min_1 < min_2, do: min_1, else: min_2
               max = if max_1 > max_2, do: max_1, else: max_2
               new_c = count_1 + count_2
