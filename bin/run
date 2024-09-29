@@ -151,6 +151,10 @@ run_process_measurements.profile.benchee() {
     mix run benchee.exs
 }
 
+run_with_cpu_profiling() {
+    ./bin/measure_cpu "$@"
+}
+
 run_livebook.setup() {
     mix escript.install hex livebook 0.12.1 --force
     mkdir -p $(pwd)/.livebook
