@@ -9,7 +9,6 @@ defmodule OneBRC.MeasurementsProcessor.Version8.Worker do
 
       :result ->
         send(parent_pid, {:result, :erlang.get()})
-        # die
     end
   end
 
@@ -22,28 +21,12 @@ defmodule OneBRC.MeasurementsProcessor.Version8.Worker do
   end
 
   defp process_chunk_lines(bin) do
-    case parse_line(bin) do
-      {key, val, rest} ->
-        process_row(key, val)
-        process_chunk_lines(rest)
-
-      :incomplete ->
-        :ok
-    end
-  end
-
-  defp parse_line(bin) do
     parse_weather_station(bin, bin, 0)
   end
 
   defp parse_weather_station(bin, <<";", _rest::binary>>, count) do
     <<key::binary-size(count), ";", temp_bin::binary>> = bin
-
-    case parse_temperature(temp_bin) do
-      {val, <<"\n", rest::binary>>} -> {key, val, rest}
-      {val, <<>>} -> {key, val, <<>>}
-      :error -> :incomplete
-    end
+    parse_temp(temp_bin, key)
   end
 
   defp parse_weather_station(bin, <<_c, rest::binary>>, count) do
@@ -51,51 +34,43 @@ defmodule OneBRC.MeasurementsProcessor.Version8.Worker do
   end
 
   defp parse_weather_station(_bin, <<>>, _count) do
-    :incomplete
+    :ok
   end
 
-  defp parse_temperature(<<?-, d2, d1, ?., d01, rest::binary>>) do
-    {-(char_to_num(d2) * 100 + char_to_num(d1) * 10 + char_to_num(d01)), rest}
+  defp parse_temp(<<?-, d2, d1, ?., d01, "\n", rest::binary>>, key) do
+    process_row(key, -(char_to_num(d2) * 100 + char_to_num(d1) * 10 + char_to_num(d01)))
+    process_chunk_lines(rest)
   end
 
-  defp parse_temperature(<<?-, d1, ?., d01, rest::binary>>) do
-    {-(char_to_num(d1) * 10 + char_to_num(d01)), rest}
+  defp parse_temp(<<?-, d1, ?., d01, "\n", rest::binary>>, key) do
+    process_row(key, -(char_to_num(d1) * 10 + char_to_num(d01)))
+    process_chunk_lines(rest)
   end
 
-  defp parse_temperature(<<d2, d1, ?., d01, rest::binary>>) do
-    {char_to_num(d2) * 100 + char_to_num(d1) * 10 + char_to_num(d01), rest}
+  defp parse_temp(<<d2, d1, ?., d01, "\n", rest::binary>>, key) do
+    process_row(key, char_to_num(d2) * 100 + char_to_num(d1) * 10 + char_to_num(d01))
+    process_chunk_lines(rest)
   end
 
-  defp parse_temperature(<<d1, ?., d01, rest::binary>>) do
-    {char_to_num(d1) * 10 + char_to_num(d01), rest}
-  end
-
-  defp parse_temperature(_) do
-    :error
-  end
-
-  defp char_to_num(char) do
-    char - ?0
+  defp parse_temp(<<d1, ?., d01, "\n", rest::binary>>, key) do
+    process_row(key, char_to_num(d1) * 10 + char_to_num(d01))
+    process_chunk_lines(rest)
   end
 
   defp process_row(key, val) do
     existing_record = :erlang.get(key)
 
-    new_record =
-      case existing_record do
-        :undefined ->
-          {val, val, val, 1}
+    case existing_record do
+      :undefined ->
+        :erlang.put(key, {1, val, val, val})
 
-        {min, max, sum, count} ->
-          min = if val < min, do: val, else: min
-          max = if val > max, do: val, else: max
-          new_c = count + 1
-          new_sum = sum + val
+      {count, sum, min, max} ->
+        :erlang.put(key, {count + 1, sum + val, min(min, val), max(max, val)})
+    end
+  end
 
-          {min, max, new_sum, new_c}
-      end
-
-    :erlang.put(key, new_record)
+  defp char_to_num(c) do
+    c - ?0
   end
 end
 
@@ -114,8 +89,7 @@ defmodule OneBRC.MeasurementsProcessor.Version8 do
   def process(count) do
     t1 = System.monotonic_time(:millisecond)
     file_path = measurements_file(count)
-    worker_count = System.schedulers_online() * 2
-    # boot up workers
+    worker_count = System.schedulers_online()
     parent = self()
 
     wpids =
@@ -127,67 +101,47 @@ defmodule OneBRC.MeasurementsProcessor.Version8 do
 
     {:ok, file} = :prim_file.open(file_path, [:raw, :binary, :read])
     :ok = read_and_process(file)
-
-    # wait for all workers to finish
-    Enum.map(1..worker_count, fn _ ->
-      receive do
-        {:give_work, _worker_pid} ->
-          :ok
-      end
-    end)
+    :prim_file.close(file)
 
     results =
       wpids
       |> Enum.map(fn wpid ->
         send(wpid, :result)
-      end)
-      |> Enum.map(fn _ ->
+
         receive do
-          {:result, result} ->
-            result
+          {:result, result} -> result
         end
       end)
-
-    :prim_file.close(file)
 
     t2 = System.monotonic_time(:millisecond)
 
     result =
       results
       |> List.flatten()
-      |> Enum.reduce(%{}, fn {key, {min_1, max_1, sum_1, count_1}}, acc ->
-        new_record =
-          case Map.fetch(acc, key) do
-            :error ->
-              {min_1, max_1, sum_1, count_1}
+      |> Enum.reduce(%{}, fn {key, {count_1, sum_1, min_1, max_1}}, acc ->
+        case Map.fetch(acc, key) do
+          :error ->
+            Map.put(acc, key, {count_1, sum_1, min_1, max_1})
 
-            {:ok, {min_2, max_2, sum_2, count_2}} ->
-              min = if min_1 < min_2, do: min_1, else: min_2
-              max = if max_1 > max_2, do: max_1, else: max_2
-              new_c = count_1 + count_2
-              sum = sum_1 + sum_2
-
-              {min, max, sum, new_c}
-          end
-
-        Map.put(acc, key, new_record)
+          {:ok, {count_2, sum_2, min_2, max_2}} ->
+            Map.put(acc, key, {
+              count_1 + count_2,
+              sum_1 + sum_2,
+              min(min_1, min_2),
+              max(max_1, max_2)
+            })
+        end
       end)
-      |> Enum.map(fn {key, {min, max, sum, count}} ->
-        # bring it back to floating point
-        {key,
-         %{
-           min: round_to_single_decimal(min / 10.0),
-           max: round_to_single_decimal(max / 10.0),
-           mean: round_to_single_decimal(sum / count / 10.0)
-         }}
+      |> Enum.map(fn {key, {count, sum, min, max}} ->
+        {key, {min / 10.0, round_to_single_decimal(sum / count / 10.0), max / 10.0}}
       end)
+      |> Enum.sort_by(fn {key, _} -> key end)
 
     t3 = System.monotonic_time(:millisecond)
 
     result_txt =
       result
-      |> Enum.sort_by(fn {key, _} -> key end)
-      |> Enum.reduce("", fn {key, %{min: min, max: max, mean: mean}}, acc ->
+      |> Enum.reduce("", fn {key, {min, mean, max}}, acc ->
         acc <> "#{key};#{min};#{mean};#{max}\n"
       end)
 
@@ -203,30 +157,23 @@ defmodule OneBRC.MeasurementsProcessor.Version8 do
   defp read_and_process(file) do
     chunk_size = 1024 * 1024 * 1
 
-    data =
-      case :prim_file.read(file, chunk_size) do
-        :eof ->
-          nil
+    case :prim_file.read(file, chunk_size) do
+      :eof ->
+        :ok
 
-        {:ok, data} ->
+      {:ok, data} ->
+        data =
           case :prim_file.read_line(file) do
-            {:ok, line} ->
-              <<data::binary, line::binary>>
-
-            :eof ->
-              data
+            {:ok, line} -> <<data::binary, line::binary>>
+            :eof -> data
           end
-      end
 
-    if !is_nil(data) do
-      receive do
-        {:give_work, worker_pid} ->
-          send(worker_pid, {:do_work, data})
-      end
+        receive do
+          {:give_work, worker_pid} ->
+            send(worker_pid, {:do_work, data})
+        end
 
-      read_and_process(file)
-    else
-      :ok
+        read_and_process(file)
     end
   end
 

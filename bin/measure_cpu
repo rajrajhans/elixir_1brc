@@ -8,7 +8,7 @@ fi
 command_to_run="$*"
 
 baseline_duration=2
-total_duration=5
+total_duration=3
 interval=0.1
 output_file="cpu_usage_graph.png"
 
@@ -38,7 +38,7 @@ done
 
 echo "set terminal pngcairo enhanced font 'Arial,12' size 800,600
 set output '$output_file'
-set title 'Overall CPU Usage Over Time' font 'Arial,16'
+set title 'Overall CPU Usage Over Time (V8, 100M measurements)' font 'Arial,16'
 set xlabel 'Time (${interval}s intervals)' font 'Arial,12'
 set ylabel 'CPU Usage (%)' font 'Arial,12'
 set grid
