@@ -38,3 +38,15 @@ I took to solve the challenge in two parts - first being to optimize the creatio
 - To create measurements file, execute `run create_measurements 1_000_000`. This will create a file `data/measurements.1000000.txt` with 1 million measurements.
 - To process the measurements, execute `run process_measurements 1_000_000`. This will process the file created in the previous step.
 - That's it, you can follow the codepaths, starting from `bin/run` to explore further ✌️
+
+# Performance Traces of different versions
+
+- I've used [eFlambe](https://github.com/Stratus3D/eflambe) to get performance traces of different versions. Following are the links to the traces, viewed in Speedoscope:
+
+- [Speedoscope: Version 1, 1000 measurements](https://www.speedscope.app/#profileURL=https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-1-count-1000-eflambe-output.bggg&title=ex-1brc-v1), [Link to bggg file](https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-1-count-1000-eflambe-output.bggg)
+- [Speedoscope: Version 2, 1000 measurements](https://www.speedscope.app/#profileURL=https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-2-count-1000-eflambe-output.bggg&title=ex-1brc-v2), [Link to bggg file](https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-2-count-1000-eflambe-output.bggg&title=ex-1brc-v2)
+- [Speedoscope: Version 3, 1000 measurements](https://www.speedscope.app/#profileURL=https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-3-count-1000-eflambe-output.bggg&title=ex-1brc-v3), [Link to bggg file](https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-3-count-1000-eflambe-output.bggg)
+- [Speedoscope: Version 4, 1000 measurements](https://www.speedscope.app/#profileURL=https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-4-count-1000-eflambe-output.bggg&title=ex-1brc-v4), [Link to bggg file](https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-4-count-1000-eflambe-output.bggg)
+- [Speedoscope: Version 5, 1000 measurements](https://www.speedscope.app/#profileURL=https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-5-count-1000-eflambe-output.bggg&title=ex-1brc-v5), [Link to bggg file](https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-5-count-1000-eflambe-output.bggg)
+- [Speedoscope: Version 6, 1000 measurements](https://www.speedscope.app/#profileURL=https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-6-count-1000-eflambe-output.bggg&title=ex-1brc-v6), [Link to bggg file](https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-6-count-1000-eflambe-output.bggg)
+- [Speedoscope: Version 7, 1000 measurements](https://www.speedscope.app/#profileURL=https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-7-count-1000-eflambe-output.bggg&title=ex-1brc-v7), [Link to bggg file](https://assets.rajrajhans.com/elixir-1brc-perf-traces/version-7-count-1000-eflambe-output.bggg)

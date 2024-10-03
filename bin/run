@@ -89,6 +89,7 @@ run_process_measurements.profile.eprof() {
     fi
 
     read -r count version <<<"$parsed_args"
+    export SKIP_RESULT_VERIFICATION=true
     mix profile.eprof -e "OneBRC.MeasurementsProcessor.process(${count}, \"${version}\")"
 }
 
