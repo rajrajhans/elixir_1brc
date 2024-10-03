@@ -92,6 +92,19 @@ run_process_measurements.profile.eprof() {
     mix profile.eprof -e "OneBRC.MeasurementsProcessor.process(${count}, \"${version}\")"
 }
 
+run_process_measurements.profile.cprof() {
+    local parsed_args
+    parsed_args=$(parse_count_version_args "$@")
+    if [ $? -ne 0 ]; then
+        echo "Usage: run_process_measurements.profile [--count=<count>] [--version=<version>]"
+        return 1
+    fi
+
+    read -r count version <<<"$parsed_args"
+    export SKIP_RESULT_VERIFICATION=true
+    mix profile.cprof -e "OneBRC.MeasurementsProcessor.process(${count}, \"${version}\")"
+}
+
 run_all_versions() {
     local parsed_args
     parsed_args=$(parse_count_version_args "$@")

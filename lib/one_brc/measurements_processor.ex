@@ -52,20 +52,26 @@ defmodule OneBRC.MeasurementsProcessor do
 
   defp verify_result(count) do
     # optional correctness check
-    baseline_file_path = baseline_results_file(count)
-    result_file_path = results_file(count)
+    should_skip_verification = System.get_env("SKIP_RESULT_VERIFICATION", "false")
 
-    if File.exists?(baseline_file_path) do
-      is_correct = OneBrc.ResultVerification.verify_result(result_file_path, baseline_file_path)
-
-      if is_correct do
-        Logger.info("Result is correct")
-      else
-        Logger.error("Result is incorrect")
-        raise "Result is incorrect"
-      end
+    if should_skip_verification == "true" do
+      Logger.info("Skipping correctness check")
     else
-      Logger.error("Baseline file not found. Skipping correctness check")
+      baseline_file_path = baseline_results_file(count)
+      result_file_path = results_file(count)
+
+      if File.exists?(baseline_file_path) do
+        is_correct = OneBrc.ResultVerification.verify_result(result_file_path, baseline_file_path)
+
+        if is_correct do
+          Logger.info("Result is correct")
+        else
+          Logger.error("Result is incorrect")
+          raise "Result is incorrect"
+        end
+      else
+        Logger.error("Baseline file not found. Skipping correctness check")
+      end
     end
   end
 end
