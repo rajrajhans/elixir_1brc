@@ -37,23 +37,31 @@ defmodule OneBRC.MeasurementsProcessor.Version8.Worker do
     :ok
   end
 
-  defp parse_temp(<<?-, d2, d1, ?., d01, "\n", rest::binary>>, key) do
-    process_row(key, -(char_to_num(d2) * 100 + char_to_num(d1) * 10 + char_to_num(d01)))
+  # ex: -4.5
+  defp parse_temp(<<?-, d1, ?., d2, "\n", rest::binary>>, key) do
+    temp = -(char_to_num(d1) * 10 + char_to_num(d2))
+    process_row(key, temp)
     process_chunk_lines(rest)
   end
 
-  defp parse_temp(<<?-, d1, ?., d01, "\n", rest::binary>>, key) do
-    process_row(key, -(char_to_num(d1) * 10 + char_to_num(d01)))
+  # ex: 4.5
+  defp parse_temp(<<d1, ?., d2, "\n", rest::binary>>, key) do
+    temp = char_to_num(d1) * 10 + char_to_num(d2)
+    process_row(key, temp)
     process_chunk_lines(rest)
   end
 
-  defp parse_temp(<<d2, d1, ?., d01, "\n", rest::binary>>, key) do
-    process_row(key, char_to_num(d2) * 100 + char_to_num(d1) * 10 + char_to_num(d01))
+  # ex: -45.3
+  defp parse_temp(<<?-, d1, d2, ?., d3, "\n", rest::binary>>, key) do
+    temp = -(char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3))
+    process_row(key, temp)
     process_chunk_lines(rest)
   end
 
-  defp parse_temp(<<d1, ?., d01, "\n", rest::binary>>, key) do
-    process_row(key, char_to_num(d1) * 10 + char_to_num(d01))
+  # ex: 45.3
+  defp parse_temp(<<d1, d2, ?., d3, "\n", rest::binary>>, key) do
+    temp = char_to_num(d1) * 100 + char_to_num(d2) * 10 + char_to_num(d3)
+    process_row(key, temp)
     process_chunk_lines(rest)
   end
 
@@ -77,9 +85,9 @@ end
 defmodule OneBRC.MeasurementsProcessor.Version8 do
   @moduledoc """
   diff from version 7:
-  1. removed :binary.split, using recursive parsing with pattern matching instead.
+  1. removed :binary.split in process_chunk, using recursive parsing with pattern matching instead.
 
-  Performance:
+  Performance: Processes 10 million rows in approx 300ms
   """
   import OneBRC.MeasurementsProcessor
   alias OneBRC.MeasurementsProcessor.Version8.Worker
