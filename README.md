@@ -2,6 +2,10 @@
 
 1BRC is a challenge, [originally in Java](https://github.com/gunnarmorling/1brc) to process a text file of weather station names and temperatures, and for each weather station, print out the minimum, mean, and maximum. It sounds simple, but the catch is that the file contains one billion rows. Fun!
 
+![1BRC Title Slide](https://assets.rajrajhans.com/elixir-1brc-perf-traces/1brc_title_slide.jpeg)
+
+> A talk related to this was presented at [Code Beam Europe 2024](https://codebeameurope.com/talks/the-one-billion-row-challenge-in-elixir-from-12-minutes-to-25-seconds/). The [slides are available here](https://assets.rajrajhans.com/elixir-1brc-perf-traces/raj_code_beam_2024_compressed.pdf).
+
 ## Setting up this repo
 
 - This repo uses Nix flakes to manage dependencies. To get started, run `direnv allow` in the root of the repo to activate the Nix environment.
